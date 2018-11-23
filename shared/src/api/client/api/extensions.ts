@@ -4,11 +4,15 @@ import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtExtensionsAPI } from '../../extension/api/extensions'
 import { Connection } from '../../protocol/jsonrpc2/connection'
 import { isEqual } from '../../util'
-import { Environment } from '../environment'
 import { Extension } from '../extension'
 
+interface ExtensionToActivate extends Pick<Extension, 'id'> {
+    /** The URL to the JavaScript bundle of the extension. */
+    scriptURL: string
+}
+
 /** @internal */
-export class ClientExtensions<X extends Extension> {
+export class ClientExtensions {
     private subscriptions = new Subscription()
     private proxy: ExtExtensionsAPI
 
@@ -16,10 +20,10 @@ export class ClientExtensions<X extends Extension> {
      * Implements the client side of the extensions API.
      *
      * @param connection The connection to the extension host.
-     * @param extensions An observable that emits the set of activated extensions upon subscription
-     * and whenever it changes.
+     * @param extensions An observable that emits the set of extensions that should be activated
+     * upon subscription and whenever it changes.
      */
-    constructor(connection: Connection, extensions: Observable<Environment<X>['extensions']>) {
+    constructor(connection: Connection, extensions: Observable<ExtensionToActivate[] | null>) {
         this.proxy = createProxyAndHandleRequests('extensions', connection, this)
 
         this.subscriptions.add(
@@ -33,8 +37,8 @@ export class ClientExtensions<X extends Extension> {
                 .subscribe(([oldExtensions, newExtensions]) => {
                     // Diff next state's activated extensions vs. current state's.
                     const toActivate = newExtensions || []
-                    const toDeactivate: X[] = []
-                    const next: X[] = []
+                    const toDeactivate: ExtensionToActivate[] = []
+                    const next: ExtensionToActivate[] = []
                     if (oldExtensions) {
                         for (const x of oldExtensions) {
                             const newIndex = toActivate.findIndex(({ id }) => isEqual(x.id, id))
@@ -51,23 +55,19 @@ export class ClientExtensions<X extends Extension> {
 
                     // Deactivate extensions that are no longer in use.
                     for (const x of toDeactivate) {
-                        // TODO!(sqs): safely catch errors etc.
-                        // x.deactivate()
-                        throw new Error('not yet implemented TODO!(sqs) deactivate: ' + x.id)
+                        this.proxy.$deactivateExtension(x.id).catch(err => {
+                            console.warn(`Error deactivating extension ${JSON.stringify(x.id)}:`, err)
+                        })
                     }
 
                     // Activate extensions that haven't yet been activated.
                     for (const x of toActivate) {
-                        console.log('TODO!(sqs) 3742371 activate extension', x.id)
-                        this.activateExtension(x).catch(err => console.error('TODO!(sqs) 394832', err))
+                        this.proxy
+                            .$activateExtension(x.id, x.scriptURL)
+                            .catch(err => console.error(`Error activating extension ${JSON.stringify(x.id)}:`, err))
                     }
                 })
         )
-    }
-
-    private async activateExtension(extension: X): Promise<void> {
-        // TODO!(sqs): remove cast
-        await this.proxy.$activateExtension((extension as any).manifest.url)
     }
 
     public unsubscribe(): void {

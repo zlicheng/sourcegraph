@@ -1,10 +1,17 @@
+import { Unsubscribable } from 'rxjs'
+import { tryCatchPromise } from '../../util'
+
 /** @internal */
 export interface ExtExtensionsAPI {
-    $activateExtension(bundleURL: string): Promise<void>
+    $activateExtension(extensionID: string, bundleURL: string): Promise<void>
+    $deactivateExtension(extensionID: string): Promise<void>
 }
 
 /** @internal */
-export class ExtExtensions implements ExtExtensionsAPI {
+export class ExtExtensions implements ExtExtensionsAPI, Unsubscribable {
+    /** Extensions' deactivate functions. */
+    private extensionDeactivate = new Map<string, (() => void | Promise<void>)>()
+
     /**
      * Proxy method invoked by the client to load an extension and invoke its `activate` function to start running it.
      *
@@ -12,28 +19,16 @@ export class ExtExtensions implements ExtExtensionsAPI {
      * `import 'sourcegraph'`, it gets the extension API handle (the value specified in
      * sourcegraph.d.ts).
      *
+     * @param extensionID The extension ID of the extension to activate.
      * @param bundleURL The URL to the JavaScript source file (that exports an `activate` function) for
      * the extension.
-     * @returns The extension's deactivate function (or a noop if it has none), and an activation
-     * promise that resolves when activation finishes.
-     * @throws An error if importScripts fails on the extension bundle.
+     * @returns A promise that resolves when the extension's activation finishes (i.e., when it returns if it's synchronous, or when the promise it returns resolves if it's async).
      */
-    public $activateExtension(
-        bundleURL: string
-    ): /*{
-    activation: Promise<void>
-    deactivate: () => Promise<void>
-}*/ Promise<void> {
+    public async $activateExtension(extensionID: string, bundleURL: string): Promise<void> {
+        // TODO!(sqs)
         console.log(
-            'TODO!(sqs): check origin, see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Security_concerns'
+            'TODO!(sqs): check origin to avoid executing untrusted code, see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Security_concerns'
         )
-        console.log('TODO!(sqs)')
-        console.log('TODO!(sqs)')
-        console.log('TODO!(sqs)')
-        console.log('TODO!(sqs)')
-        console.log('TODO!(sqs)')
-        console.log('TODO!(sqs)')
-        console.log('TODO!(sqs)')
 
         // Load the extension bundle and retrieve the extension entrypoint module's exports on
         // the global `module` property.
@@ -41,36 +36,66 @@ export class ExtExtensions implements ExtExtensionsAPI {
             ;(self as any).exports = {}
             ;(self as any).module = {}
             ;(self as any).importScripts(bundleURL)
-        } catch (error) {
-            throw Object.assign(new Error('error executing extension bundle (in importScripts)'), { error })
+        } catch (err) {
+            throw new Error(
+                `error thrown while executing extension ${JSON.stringify(
+                    extensionID
+                )} bundle (in importScripts of ${bundleURL}): ${err}`
+            )
         }
         const extensionExports = (self as any).module.exports
         delete (self as any).exports
         delete (self as any).module
 
-        // Wrap in Promise constructor so that the behavior is consistent for both sync and async
-        // activate functions that throw errors. Both cases should yield a rejected promise.
-        const activation = new Promise<void>((resolve, reject) => {
-            if ('activate' in extensionExports) {
-                // This will yield a rejected promise if activation throws or rejects.
-                resolve(extensionExports.activate())
-            } else {
-                reject(new Error(`error activating extension: extension did not export an 'activate' function`))
-            }
-        })
-        return activation
+        if (!('activate' in extensionExports)) {
+            throw new Error(
+                `extension bundle for ${JSON.stringify(
+                    extensionID
+                )} has no exported activate function (in ${bundleURL})`
+            )
+        }
+        if ('deactivate' in extensionExports) {
+            this.extensionDeactivate.set(extensionID, extensionExports.deactivate)
+        }
 
-        // return {
-        //     activation,
-        //     deactivate: async () => {
-        //         if ('deactivate' in extensionExports) {
-        //             try {
-        //                 await Promise.resolve(extensionExports.deactivate())
-        //             } catch (err) {
-        //                 console.warn(`Extension 'deactivate' function threw an error.`, err)
-        //             }
-        //         }
-        //     },
-        // }
+        // The behavior should be consistent for both sync and async activate functions that throw
+        // errors or reject. Both cases should yield a rejected promise.
+        //
+        // TODO(sqs): Add timeouts to prevent long-running activate or deactivate functions from
+        // significantly delaying other extensions.
+        return tryCatchPromise<void>(extensionExports.activate).catch(error => {
+            throw Object.assign(
+                new Error(`error during extension ${JSON.stringify(extensionID)} activate function: ${error}`),
+                {
+                    error,
+                }
+            )
+        })
+    }
+
+    public async $deactivateExtension(extensionID: string): Promise<void> {
+        const deactivate = this.extensionDeactivate.get(extensionID)
+        if (deactivate) {
+            this.extensionDeactivate.delete(extensionID)
+            return Promise.resolve(deactivate())
+        }
+    }
+
+    /**
+     * Deactivates all activated extensions that have "deactivate" functions. It does not wait for
+     * the deactivation to finish for an extension if its deactivate function is async. If any
+     * deactivate functions throw an error or reject, the error is logged and not propagated.
+     *
+     * There is no guarantee that extensions' deactivate functions are called or that execution
+     * continues until they are finished. The JavaScript execution context may be terminated before
+     * deactivation is completed.
+     */
+    public unsubscribe(): void {
+        for (const [extensionID, deactivate] of this.extensionDeactivate.entries()) {
+            this.extensionDeactivate.delete(extensionID)
+            tryCatchPromise(deactivate).catch(err => {
+                console.warn(`Error deactivating extension ${JSON.stringify(extensionID)}:`, err)
+            })
+        }
     }
 }

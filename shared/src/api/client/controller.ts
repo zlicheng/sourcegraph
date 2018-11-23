@@ -48,7 +48,7 @@ export interface ControllerOptions<X extends Extension, C extends SettingsCascad
     environmentFilter?(nextEnvironment: Environment<X, C>): Environment<X, C>
 }
 
-export interface ControllerHelpers {
+export interface ControllerHelpers<X extends Extension> {
     // TODO!(sqs): make not subjects but just observables
 
     /** Log messages from extensions. */
@@ -65,6 +65,19 @@ export interface ControllerHelpers {
 
     /** Configuration updates from extensions. */
     readonly configurationUpdates: Subject<ConfigurationUpdate>
+
+    /**
+     * Returns the script URL suitable for passing to importScripts for an extension's bundle.
+     *
+     * This is necessary because some platforms (such as Chrome extensions) use a script-src CSP
+     * that would prevent loading bundles from arbitrary URLs, which requires us to pass blob: URIs
+     * to importScripts.
+     *
+     * @param extension The extension whose script URL to get.
+     * @return A script URL suitable for passing to importScripts, typically either the original
+     * https:// URL for the extension's bundle or a blob: URI for it.
+     */
+    getScriptURLForExtension(extension: X): string | Promise<string>
 }
 
 /**
@@ -73,7 +86,8 @@ export interface ControllerHelpers {
  * @template X extension type
  * @template C settings cascade type
  */
-export class Controller<X extends Extension, C extends SettingsCascade> implements ControllerHelpers, Unsubscribable {
+export class Controller<X extends Extension, C extends SettingsCascade>
+    implements ControllerHelpers<X>, Unsubscribable {
     private _environment = new BehaviorSubject<Environment<X, C>>(EMPTY_ENVIRONMENT)
 
     /** The environment. */
@@ -100,6 +114,11 @@ export class Controller<X extends Extension, C extends SettingsCascade> implemen
     public readonly showMessageRequests = new Subject<ShowMessageRequest>()
     public readonly showInputs = new Subject<ShowInputRequest>()
     public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
+
+    // TODO!(sqs): extract, remove any case
+    public getScriptURLForExtension(extension: X): string {
+        return (extension as any).manifest.url // TODO!(sqs)
+    }
 
     constructor(private options: ControllerOptions<X, C>) {
         this.registries = new Registries<X, C>(this.environment)

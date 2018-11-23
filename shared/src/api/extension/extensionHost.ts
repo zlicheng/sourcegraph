@@ -70,7 +70,7 @@ export function startExtensionHost(transports: MessageTransports): Unsubscribabl
             throw new Error('extension host is already initialized')
         }
         initialized = true
-        subscription.add(createExtensionHost(connection, initData))
+        subscription.add(initializeExtensionHost(connection, initData))
     })
 
     return subscription
@@ -80,13 +80,20 @@ export function startExtensionHost(transports: MessageTransports): Unsubscribabl
  * Initializes the extension host using the {@link InitData} from the client application. It is
  * called by {@link startExtensionHost} after the {@link InitData} is received.
  *
+ * The extension API is made globally available to all requires/imports of the "sourcegraph" module
+ * by other scripts running in the same JavaScript context.
+ *
  * @param connection The connection used to communicate with the client.
  * @param initData The information to initialize this extension host.
  * @return An unsubscribable to terminate the extension host.
  */
-function createExtensionHost(connection: Connection, initData: InitData): Unsubscribable {
+function initializeExtensionHost(connection: Connection, initData: InitData): Unsubscribable {
+    const subscriptions = new Subscription()
+
+    const { api, subscription: apiSubscription } = createExtensionAPI(initData, connection)
+    subscriptions.add(apiSubscription)
+
     // Make `import 'sourcegraph'` or `require('sourcegraph')` return the extension API.
-    const api = createExtensionAPI(initData, connection)
     ;(self as any).require = (modulePath: string): any => {
         if (modulePath === 'sourcegraph') {
             return api
@@ -95,40 +102,24 @@ function createExtensionHost(connection: Connection, initData: InitData): Unsubs
         // bundler should have resolved them locally.
         throw new Error(`require: module not found: ${modulePath}`)
     }
-
-    const subscription = new Subscription()
-
-    // Activate extensions when requested.
-    //
-    // TODO!(sqs): add type for initialize request
-    //
-    // TODO(sqs): add timeouts to prevent long-running activate or deactivate functions from
-    // significantly delaying other extensions.
-    connection.onRequest('activateExtension', async (bundleURL: string) => {
-        const { activation, deactivate } = activateExtension(bundleURL)
-        const extensionSubscription = new Subscription(deactivate)
-        try {
-            await activation
-        } catch (err) {
-            // Deactivate the extension if an error was thrown, in case the extension was partially
-            // activated and acquired resources that should be released. The deactivate function
-            // might not be robust to being called when the extension was only partially activated,
-            // which might mean that it would not release all of the resources that were acquired
-            // (but it's still better than not running it at all).
-            await deactivate()
-            throw err
+    subscriptions.add(() => {
+        ;(self as any).require = () => {
+            // Prevent callers from attempting to access the extension API after it was
+            // unsubscribed.
+            throw new Error(`require: Sourcegraph extension API was unsubscribed`)
         }
-
-        // Deactivate the extension when the extension host terminates. There is no guarantee that this
-        // is called or that execution continues until it is finshed (i.e., the JavaScript execution
-        // context may be terminated before deactivation is completed).
-        subscription.add(extensionSubscription)
     })
 
-    return subscription
+    return subscriptions
 }
 
-function createExtensionAPI(initData: InitData, connection: Connection): typeof sourcegraph {
+function createExtensionAPI(
+    initData: InitData,
+    connection: Connection
+): { api: typeof sourcegraph; subscription: Subscription } {
+    // TODO!(sqs): add things to this subscription
+    const subscriptions = new Subscription()
+
     // For debugging/tests.
     const sync = () => connection.sendRequest<void>('ping')
     connection.onRequest('ping', () => 'pong')
@@ -163,7 +154,7 @@ function createExtensionAPI(initData: InitData, connection: Connection): typeof 
     const commands = new ExtCommands(createProxy(connection, 'commands'))
     handleRequests(connection, 'commands', commands)
 
-    return {
+    const api: typeof sourcegraph = {
         URI,
         Position,
         Range,
@@ -233,4 +224,5 @@ function createExtensionAPI(initData: InitData, connection: Connection): typeof 
             clientApplication: initData.clientApplication,
         },
     }
+    return { api, subscription: subscriptions }
 }

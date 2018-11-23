@@ -1,5 +1,5 @@
-import { BehaviorSubject, Subscription, Unsubscribable } from 'rxjs'
-import { distinctUntilChanged, map } from 'rxjs/operators'
+import { BehaviorSubject, from, Subscription, Unsubscribable } from 'rxjs'
+import { distinctUntilChanged, map, switchMap, tap } from 'rxjs/operators'
 import { ContextValues } from 'sourcegraph'
 import {
     ConfigurationUpdateParams,
@@ -10,6 +10,7 @@ import {
     ShowMessageRequestParams,
 } from '../protocol'
 import { Connection } from '../protocol/jsonrpc2/connection'
+import { Tracer } from '../protocol/jsonrpc2/trace'
 import { ClientCodeEditor } from './api/codeEditor'
 import { ClientCommands } from './api/commands'
 import { ClientConfiguration } from './api/configuration'
@@ -65,6 +66,12 @@ export interface ExtensionHostClient {
     // TODO!(sqs): some way of knowing when the client was closed unexpectedly, like an observable or onClose/onError
 
     /**
+     * Sets or unsets the tracer to use for logging all of this client's messages to/from the
+     * extension host.
+     */
+    setTracer(tracer: Tracer | null): void
+
+    /**
      * Closes the connection to and terminates the extension host.
      */
     unsubscribe(): void
@@ -89,7 +96,7 @@ export function createExtensionHostClient<X extends Extension, C extends Setting
     connection: Connection,
     environment: BehaviorSubject<Environment<X, C>>,
     registries: Registries<X, C>,
-    helpers: ControllerHelpers
+    helpers: ControllerHelpers<X>
 ): ExtensionHostClient {
     const subscription = new Subscription()
 
@@ -115,9 +122,29 @@ export function createExtensionHostClient<X extends Extension, C extends Setting
         )
     )
     subscription.add(
-        new ClientExtensions<X>(
+        new ClientExtensions(
             connection,
-            environment.pipe(map(({ extensions }) => extensions, distinctUntilChanged()))
+            environment.pipe(
+                map(({ extensions }) => extensions),
+                distinctUntilChanged(),
+                // TODO!(sqs): memoize getScriptURLForExtension
+                /** Run {@link ControllerHelpers.getScriptURLForExtension} last because it is nondeterministic. */
+                switchMap(
+                    extensions =>
+                        extensions !== null && extensions.length > 0
+                            ? from(
+                                  Promise.all(
+                                      extensions.map(x =>
+                                          Promise.resolve(helpers.getScriptURLForExtension(x)).then(scriptURL => ({
+                                              id: x.id,
+                                              scriptURL,
+                                          }))
+                                      )
+                                  )
+                              )
+                            : [null]
+                )
+            )
         )
     )
     subscription.add(
@@ -171,5 +198,10 @@ export function createExtensionHostClient<X extends Extension, C extends Setting
         )
     )
 
-    return subscription
+    return {
+        setTracer: tracer => {
+            connection.trace(tracer)
+        }
+        unsubscribe: () => subscription.unsubscribe(),
+    }
 }
