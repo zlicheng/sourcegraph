@@ -3,7 +3,7 @@ import * as H from 'history'
 import * as React from 'react'
 import { Subject, Subscription } from 'rxjs'
 import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
-import { ExtensionConnection } from '../api/client/controller'
+import { ActivatedExtension } from '../api/client/controller'
 import { BrowserConsoleTracer } from '../api/protocol/jsonrpc2/trace'
 import { PopoverButton } from '../components/PopoverButton'
 import { Toggle } from '../components/Toggle'
@@ -15,7 +15,7 @@ interface Props extends ExtensionsControllerProps {
 
 interface State {
     /** The extension clients, or undefined while loading. */
-    extensions?: ExtensionConnection[]
+    extensions?: ActivatedExtension[]
 
     /** Whether to log traces of communication with extensions. */
     trace?: boolean

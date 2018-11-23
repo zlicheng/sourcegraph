@@ -1,3 +1,3 @@
-import { extensionHostWorkerMain } from '../../../shared/src/api/extension/workerMain'
+import { extensionHostMain } from '../../../shared/src/api/extension/workerMain'
 
-extensionHostWorkerMain()
+extensionHostMain()

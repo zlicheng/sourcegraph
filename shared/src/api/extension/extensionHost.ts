@@ -1,13 +1,12 @@
 import { Subscription, Unsubscribable } from 'rxjs'
 import * as sourcegraph from 'sourcegraph'
 import { createProxy, handleRequests } from '../common/proxy'
-import { SettingsCascade } from '../protocol'
 import { Connection, createConnection, Logger, MessageTransports } from '../protocol/jsonrpc2/connection'
-import { createWebWorkerMessageTransports } from '../protocol/jsonrpc2/transports/webWorker'
 import { ExtCommands } from './api/commands'
 import { ExtConfiguration } from './api/configuration'
 import { ExtContext } from './api/context'
 import { ExtDocuments } from './api/documents'
+import { ExtExtensions } from './api/extensions'
 import { ExtLanguageFeatures } from './api/languageFeatures'
 import { ExtRoots } from './api/roots'
 import { ExtSearch } from './api/search'
@@ -43,35 +42,49 @@ export interface InitData {
 
     /** @see {@link module:sourcegraph.internal.clientApplication} */
     clientApplication: 'sourcegraph' | 'other'
-
-    /**
-     * The settings cascade at the time of extension host initialization. It must be provided because extensions
-     * expect that the settings are synchronously available when their `activate` method is called.
-     */
-    settingsCascade: SettingsCascade<any>
 }
 
 /**
- * Creates the extension host, which runs extensions. It is a Web Worker or other similar isolated
+ * Starts the extension host, which runs extensions. It is a Web Worker or other similar isolated
  * JavaScript execution context. There is exactly 1 extension host, and it has zero or more
  * extensions activated (and running).
  *
- * @param initData The information to initialize this extension host.
+ * It expects to receive a message containing {@link InitData} from the client application as the
+ * first message.
+ *
  * @param transports The message reader and writer to use for communication with the client.
- *                   Defaults to communicating using self.postMessage and MessageEvents with the
- *                   parent (assuming that it is called in a Web Worker).
  * @return An unsubscribable to terminate the extension host.
  */
-export function startExtensionHost(
-    initData: InitData,
-    transports: MessageTransports = createWebWorkerMessageTransports()
-): Unsubscribable {
+export function startExtensionHost(transports: MessageTransports): Unsubscribable {
     const connection = createConnection(transports, consoleLogger)
     connection.listen()
 
     const subscription = new Subscription()
     subscription.add(connection)
 
+    // Wait for "initialize" message from client application before proceeding to create the
+    // extension host.
+    let initialized = false
+    connection.onRequest('initialize', (initData: InitData) => {
+        if (initialized) {
+            throw new Error('extension host is already initialized')
+        }
+        initialized = true
+        subscription.add(createExtensionHost(connection, initData))
+    })
+
+    return subscription
+}
+
+/**
+ * Initializes the extension host using the {@link InitData} from the client application. It is
+ * called by {@link startExtensionHost} after the {@link InitData} is received.
+ *
+ * @param connection The connection used to communicate with the client.
+ * @param initData The information to initialize this extension host.
+ * @return An unsubscribable to terminate the extension host.
+ */
+function createExtensionHost(connection: Connection, initData: InitData): Unsubscribable {
     // Make `import 'sourcegraph'` or `require('sourcegraph')` return the extension API.
     const api = createExtensionAPI(initData, connection)
     ;(self as any).require = (modulePath: string): any => {
@@ -83,19 +96,19 @@ export function startExtensionHost(
         throw new Error(`require: module not found: ${modulePath}`)
     }
 
+    const subscription = new Subscription()
+
     // Activate extensions when requested.
+    //
+    // TODO!(sqs): add type for initialize request
     //
     // TODO(sqs): add timeouts to prevent long-running activate or deactivate functions from
     // significantly delaying other extensions.
     connection.onRequest('activateExtension', async (bundleURL: string) => {
         const { activation, deactivate } = activateExtension(bundleURL)
+        const extensionSubscription = new Subscription(deactivate)
         try {
             await activation
-
-            // Deactivate the extension when the extension host terminates. There is no guarantee that this
-            // is called or that execution continues until it is finshed (i.e., the JavaScript execution
-            // context may be terminated before deactivation is completed).
-            subscription.add(deactivate)
         } catch (err) {
             // Deactivate the extension if an error was thrown, in case the extension was partially
             // activated and acquired resources that should be released. The deactivate function
@@ -105,6 +118,11 @@ export function startExtensionHost(
             await deactivate()
             throw err
         }
+
+        // Deactivate the extension when the extension host terminates. There is no guarantee that this
+        // is called or that execution continues until it is finshed (i.e., the JavaScript execution
+        // context may be terminated before deactivation is completed).
+        subscription.add(extensionSubscription)
     })
 
     return subscription
@@ -121,6 +139,9 @@ function createExtensionAPI(initData: InitData, connection: Connection): typeof 
     const documents = new ExtDocuments(sync)
     handleRequests(connection, 'documents', documents)
 
+    const extensions = new ExtExtensions()
+    handleRequests(connection, 'extensions', extensions)
+
     const roots = new ExtRoots()
     handleRequests(connection, 'roots', roots)
 
@@ -130,7 +151,7 @@ function createExtensionAPI(initData: InitData, connection: Connection): typeof 
     const views = new ExtViews(createProxy(connection, 'views'))
     handleRequests(connection, 'views', views)
 
-    const configuration = new ExtConfiguration<any>(createProxy(connection, 'configuration'), initData.settingsCascade)
+    const configuration = new ExtConfiguration<any>(createProxy(connection, 'configuration'))
     handleRequests(connection, 'configuration', configuration)
 
     const languageFeatures = new ExtLanguageFeatures(createProxy(connection, 'languageFeatures'), documents)
@@ -210,72 +231,6 @@ function createExtensionAPI(initData: InitData, connection: Connection): typeof 
             updateContext: updates => context.updateContext(updates),
             sourcegraphURL: new URI(initData.sourcegraphURL),
             clientApplication: initData.clientApplication,
-        },
-    }
-}
-
-/**
- * Loads an extension and invokes its `activate` function to start running it.
- *
- * It also sets up global hooks so that when the extension's code uses `require('sourcegraph')` and
- * `import 'sourcegraph'`, it gets the extension API handle (the value specified in
- * sourcegraph.d.ts).
- *
- * @param bundleURL The URL to the JavaScript source file (that exports an `activate` function) for
- * the extension.
- * @returns The extension's deactivate function (or a noop if it has none), and an activation
- * promise that resolves when activation finishes.
- * @throws An error if importScripts fails on the extension bundle.
- */
-function activateExtension(
-    bundleURL: string
-): {
-    activation: Promise<void>
-    deactivate: () => Promise<void>
-} {
-    console.log(
-        'TODO!(sqs): check origin, see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Security_concerns'
-    )
-    console.log('TODO!(sqs)')
-    console.log('TODO!(sqs)')
-    console.log('TODO!(sqs)')
-    console.log('TODO!(sqs)')
-    console.log('TODO!(sqs)')
-    console.log('TODO!(sqs)')
-    console.log('TODO!(sqs)')
-
-    // Load the extension bundle and retrieve the extension entrypoint module's exports on
-    // the global `module` property.
-    try {
-        ;(self as any).exports = {}
-        ;(self as any).module = {}
-        ;(self as any).importScripts(bundleURL)
-    } catch (error) {
-        throw Object.assign(new Error('error executing extension bundle (in importScripts)'), { error })
-    }
-    const extensionExports = (self as any).module.exports
-    delete (self as any).exports
-    delete (self as any).module
-
-    return {
-        // Wrap in Promise constructor so that the behavior is consistent for both sync and async
-        // activate functions that throw errors. Both cases should yield a rejected promise.
-        activation: new Promise<void>((resolve, reject) => {
-            if ('activate' in extensionExports) {
-                // This will yield a rejected promise if activation throws or rejects.
-                resolve(extensionExports.activate())
-            } else {
-                reject(new Error(`error activating extension: extension did not export an 'activate' function`))
-            }
-        }),
-        deactivate: async () => {
-            if ('deactivate' in extensionExports) {
-                try {
-                    await Promise.resolve(extensionExports.deactivate())
-                } catch (err) {
-                    console.warn(`Extension 'deactivate' function threw an error.`, err)
-                }
-            }
         },
     }
 }

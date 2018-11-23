@@ -1,10 +1,9 @@
-import { Subscribable } from 'rxjs'
+import { Subscribable, Unsubscribable } from 'rxjs'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
-import { ConfiguredExtension } from '../extensions/extension'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { UpdateExtensionSettingsArgs } from '../settings/edit'
-import { SettingsCascade, SettingsCascadeOrError } from '../settings/settings'
+import { SettingsCascadeOrError } from '../settings/settings'
 
 /**
  * Platform-specific data and methods shared by multiple Sourcegraph components.
@@ -56,12 +55,31 @@ export interface PlatformContext {
     forceUpdateTooltip(): void
 
     /**
-     * Spawns (e.g., in a Web Worker) and opens a communication channel to an extension.
+     * Spawns a new JavaScript execution context and opens a communication channel to it. It is
+     * called exactly once, to start the extension host.
+     *
+     * @param entrypointURL The URL to a JavaScript source file that is executed in the newly
+     * created execution context.
      */
-    createMessageTransports: (
-        extension: ConfiguredExtension,
-        settingsCascade: SettingsCascade
-    ) => Promise<MessageTransports>
+    createExecutionContext(entrypointURL: string): ExecutionContext
+}
+
+/**
+ * A JavaScript execution context, such as a Web Worker or extension background worker. It is
+ * created by {@link PlatformContext#createExecutionContext}.
+ */
+export interface ExecutionContext extends Unsubscribable {
+    /**
+     * The message transports to use to communicate with the execution context. The promise resolves
+     * when the connection to the execution context is established, or is rejected if the connection
+     * fails.
+     */
+    messageTransports: Promise<MessageTransports>
+
+    /**
+     * Terminates the execution context.
+     */
+    unsubscribe(): void
 }
 
 /**

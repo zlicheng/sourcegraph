@@ -1,17 +1,17 @@
 import * as assert from 'assert'
 import { Observable } from 'rxjs'
 import { first } from 'rxjs/operators'
-import { Controller, ExtensionConnection, ExtensionConnectionKey } from './controller'
+import { Controller, ActivatedExtension, ExtensionConnectionKey } from './controller'
 import { EMPTY_ENVIRONMENT, Environment } from './environment'
 
 class TestController extends Controller<any, any> {
-    public get clientEntries(): Observable<ExtensionConnection[]> & { value: ExtensionConnection[] } {
-        let value!: ExtensionConnection[]
+    public get clientEntries(): Observable<ActivatedExtension[]> & { value: ActivatedExtension[] } {
+        let value!: ActivatedExtension[]
         super.clientEntries
             .pipe(first())
             .subscribe(clients => (value = clients))
             .unsubscribe()
-        return { ...super.clientEntries, value } as Observable<ExtensionConnection[]> & { value: ExtensionConnection[] }
+        return { ...super.clientEntries, value } as Observable<ActivatedExtension[]> & { value: ActivatedExtension[] }
     }
 }
 

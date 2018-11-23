@@ -44,11 +44,9 @@ export interface ExtConfigurationAPI<C> {
  * @template C - The configuration schema.
  */
 export class ExtConfiguration<C extends SettingsCascade<any>> implements ExtConfigurationAPI<C> {
-    private data: BehaviorSubject<Readonly<C>>
+    private data = new BehaviorSubject<Readonly<C> | null>(null)
 
-    constructor(private proxy: ClientConfigurationAPI, initialData: Readonly<C>) {
-        this.data = new BehaviorSubject<Readonly<C>>(initialData)
-    }
+    constructor(private proxy: ClientConfigurationAPI) {}
 
     public $acceptConfigurationData(data: Readonly<C>): Promise<void> {
         this.data.next(Object.freeze(data))
@@ -56,6 +54,11 @@ export class ExtConfiguration<C extends SettingsCascade<any>> implements ExtConf
     }
 
     public get(): sourcegraph.Configuration<C> {
+        if (this.data.value === null) {
+            throw new Error(
+                'TODO!(sqs): check that this is never called, it should always be non-null by when it gets here'
+            )
+        }
         return Object.freeze(new ExtConfigurationSection<C>(this.proxy, this.data.value.final))
     }
 

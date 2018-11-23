@@ -1,16 +1,11 @@
 import { isEqual } from 'lodash'
 import { distinctUntilChanged, map } from 'rxjs/operators'
 import ExtensionHostWorker from 'worker-loader!./extensionHost.worker'
-import { InitData } from '../../../shared/src/api/extension/extensionHost'
-import { SettingsCascade } from '../../../shared/src/api/protocol'
-import { createConnection, MessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/connection'
 import { createWebWorkerMessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/transports/webWorker'
-import { ConfiguredExtension } from '../../../shared/src/extensions/extension'
 import { gql } from '../../../shared/src/graphql/graphql'
 import { PlatformContext } from '../../../shared/src/platform/context'
 import { mutateSettings, updateSettings } from '../../../shared/src/settings/edit'
 import { gqlToCascade } from '../../../shared/src/settings/settings'
-import { isErrorLike } from '../../../shared/src/util/errors'
 import { requestGraphQL } from '../backend/graphql'
 import { sendLSPHTTPRequests } from '../backend/lsp'
 import { Tooltip } from '../components/tooltip/Tooltip'
@@ -66,47 +61,15 @@ export function createPlatformContext(): PlatformContext {
             ),
         queryLSP: requests => sendLSPHTTPRequests(requests),
         forceUpdateTooltip: () => Tooltip.forceUpdate(),
-        createMessageTransports,
+        createExecutionContext: (bundleURL: string) => {
+            // TODO!(sqs): bundleURL is ignored
+            const worker = new ExtensionHostWorker()
+            const messageTransports = createWebWorkerMessageTransports(worker)
+            return {
+                messageTransports: Promise.resolve(messageTransports),
+                unsubscribe: () => worker.terminate(),
+            }
+        },
     }
     return context
-}
-
-async function createMessageTransports(
-    extension: Pick<ConfiguredExtension, 'id' | 'manifest'>,
-    settingsCascade: SettingsCascade<any>
-): Promise<MessageTransports> {
-    if (!extension.manifest) {
-        throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no manifest found`)
-    }
-    if (isErrorLike(extension.manifest)) {
-        throw new Error(
-            `unable to run extension ${JSON.stringify(extension.id)}: invalid manifest: ${extension.manifest.message}`
-        )
-    }
-
-    if (extension.manifest.url) {
-        try {
-            // TODO!(sqs): move to 1 extension host, many extensions paradigm
-            const worker = new ExtensionHostWorker()
-            const initData: InitData = {
-                sourcegraphURL: window.context.externalURL,
-                clientApplication: 'sourcegraph',
-                settingsCascade,
-            }
-            worker.postMessage(initData)
-            const transports = createWebWorkerMessageTransports(worker)
-
-            ////////////
-            const connection = createConnection(transports)
-            connection.listen()
-            await connection.sendRequest('activateExtension', [extension.manifest.url])
-            ////////////
-
-            return transports
-        } catch (err) {
-            console.error(err)
-        }
-        throw new Error('failed to initialize extension host')
-    }
-    throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
 }

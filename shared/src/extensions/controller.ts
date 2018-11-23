@@ -1,9 +1,11 @@
 import { from, Subject, Unsubscribable } from 'rxjs'
-import { filter, first, map, mergeMap } from 'rxjs/operators'
-import { Controller as BaseController, ExtensionConnectionKey } from '../api/client/controller'
+import { filter, map, mergeMap } from 'rxjs/operators'
+import { Controller as BaseController } from '../api/client/controller'
 import { Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
+import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
+import { createConnection } from '../api/protocol/jsonrpc2/connection'
 import { BrowserConsoleTracer, Trace } from '../api/protocol/jsonrpc2/trace'
 import { registerBuiltinClientCommands, updateConfiguration } from '../commands/commands'
 import { Notification } from '../notifications/notification'
@@ -102,28 +104,93 @@ declare global {
     }
 }
 
+// function foo(
+//     extension: Pick<ConfiguredExtension, 'id' | 'manifest'>,
+//     settingsCascade: SettingsCascade<any>
+// ): Promise<MessageTransports> {
+//     if (!extension.manifest) {
+//         throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no manifest found`)
+//     }
+//     if (isErrorLike(extension.manifest)) {
+//         throw new Error(
+//             `unable to run extension ${JSON.stringify(extension.id)}: invalid manifest: ${extension.manifest.message}`
+//         )
+//     }
+//
+//     if (extension.manifest.url) {
+//         try {
+//             // TODO!(sqs): move to 1 extension host, many extensions paradigm
+//             const worker = new ExtensionHostWorker()
+//             const initData: InitData = {
+//                 sourcegraphURL: window.context.externalURL,
+//                 clientApplication: 'sourcegraph',
+//                 settingsCascade,
+//             }
+//             worker.postMessage(initData)
+//             const transports = createWebWorkerMessageTransports(worker)
+//
+//             ////////////
+//             const connection = createConnection(transports)
+//             connection.listen()
+//             await connection.sendRequest('activateExtension', [extension.manifest.url])
+//             ////////////
+//
+//             return transports
+//         } catch (err) {
+//             console.error(err)
+//         }
+//         throw new Error('failed to initialize extension host')
+//     }
+//     throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
+// }
+
 /**
- * Creates the controller, which handles all communication between the React app and Sourcegraph extensions.
+ * Creates the controller, which handles all communication between the client application and
+ * extensions.
  *
- * There should only be a single controller for the entire application. The controller's environment represents all
- * of the application state that the controller needs to know.
+ * There should only be a single controller for the entire client application. The controller's
+ * environment represents all of the client application state that the controller needs to know.
  *
- * It receives state updates via calls to the setEnvironment method from React components. It provides results to
- * React components via its registries and the showMessages, etc., observables.
+ * It receives state updates via calls to the setEnvironment method. It provides functionality and
+ * results via its registries and the showMessages, etc., observables.
  */
 export function createController(context: PlatformContext): Controller {
     const controller: Controller = new Controller({
-        clientOptions: (_key: ExtensionConnectionKey, extension: ConfiguredExtension) => ({
-            createMessageTransports: async () => {
-                const settingsCascade = await controller.environment
-                    .pipe(
-                        first(),
-                        map(({ configuration }) => configuration)
-                    )
-                    .toPromise()
-                return context.createMessageTransports(extension, settingsCascade)
-            },
-        }),
+        connectToExtensionHost: () => {
+            const { messageTransports, unsubscribe: terminateExecutionContext } = context.createExecutionContext(
+                'TODO!(sqs): this is ignored'
+            )
+            const connection = messageTransports.then(async messageTransports => {
+                const connection = createConnection(messageTransports)
+                connection.listen()
+
+                // TODO!(sqs): add type for initialize request JSON-RPC 2.0 message
+                await connection.sendRequest('initialize', [
+                    {
+                        clientApplication: 'sourcegraph', // TODO!(sqs): set this differentially based on actual client application
+                        sourcegraphURL: 'TODO!(sqs)', // TODO!(sqs): set this differentially based on actual client application
+                    } as InitData,
+                ])
+
+                return connection
+            })
+            return {
+                ready: connection,
+                // activateExtension: bundleURL =>
+                //     connection
+                //         .then(connection => connection.sendRequest('activateExtension', [bundleURL]))
+                //         .then(() => void 0),
+                unsubscribe: () => {
+                    try {
+                        connection.then(connection => connection.unsubscribe()).catch(err => console.error(err))
+                    } finally {
+                        // Terminate the execution context even if unsubscribing the connection
+                        // fails synchronously.
+                        terminateExecutionContext()
+                    }
+                },
+            }
+        },
         environmentFilter,
     })
 
