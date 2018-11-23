@@ -1,4 +1,4 @@
-import { Subscribable, Unsubscribable } from 'rxjs'
+import { Subscribable } from 'rxjs'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
@@ -55,13 +55,17 @@ export interface PlatformContext {
     forceUpdateTooltip(): void
 
     /**
-     * Spawns a new JavaScript execution context and opens a communication channel to it. It is
-     * called exactly once, to start the extension host.
+     * Spawns a new JavaScript execution context (such as a Web Worker or browser extension
+     * background worker) and opens a communication channel to it. It is called exactly once, to
+     * start the extension host.
      *
      * @param entrypointURL The URL to a JavaScript source file that is executed in the newly
      * created execution context.
+     * @param signal An optional abort signal to terminate the execution context.
+     * @returns A promise that, when the execution context is ready, resolves to message transports
+     * for communicating with it (using, e.g., postMessage/onmessage).
      */
-    createExecutionContext(entrypointURL: string): ExecutionContext
+    createExecutionContext(entrypointURL: string, signal?: AbortSignal): Promise<MessageTransports>
 
     /**
      * The URL to the Sourcegraph site that the user's session is associated with. This refers to
@@ -87,24 +91,6 @@ export interface PlatformContext {
      * fixed.
      */
     clientApplication: 'sourcegraph' | 'other'
-}
-
-/**
- * A JavaScript execution context, such as a Web Worker or extension background worker. It is
- * created by {@link PlatformContext#createExecutionContext}.
- */
-export interface ExecutionContext extends Unsubscribable {
-    /**
-     * The message transports to use to communicate with the execution context. The promise resolves
-     * when the connection to the execution context is established, or is rejected if the connection
-     * fails.
-     */
-    messageTransports: Promise<MessageTransports>
-
-    /**
-     * Terminates the execution context.
-     */
-    unsubscribe(): void
 }
 
 /**

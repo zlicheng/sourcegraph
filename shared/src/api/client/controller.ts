@@ -8,8 +8,9 @@ import {
     ShowMessageParams,
     ShowMessageRequestParams,
 } from '../protocol'
+import { Connection } from '../protocol/jsonrpc2/connection'
 import { isEqual } from '../util'
-import { createExtensionHostClient, ExtensionHostClient, ExtensionHostClient2 } from './client'
+import { createExtensionHostClient, ExtensionHostClient } from './client'
 import { EMPTY_CONTEXT } from './context/context'
 import { EMPTY_ENVIRONMENT, Environment } from './environment'
 import { Extension } from './extension'
@@ -32,7 +33,7 @@ export type ConfigurationUpdate = ConfigurationUpdateParams & PromiseCallback<vo
  * @template C settings cascade type
  */
 export interface ControllerOptions<X extends Extension, C extends SettingsCascade> {
-    connectToExtensionHost(): ExtensionHostClient2
+    connectToExtensionHost(signal?: AbortSignal): Promise<Connection>
 
     /**
      * Called before applying the next environment in Controller#setEnvironment. It should have no side effects.
@@ -116,11 +117,11 @@ export class Controller<X extends Extension, C extends SettingsCascade>
     constructor(private options: ControllerOptions<X, C>) {
         this.registries = new Registries<X, C>(this.environment)
 
+        const abort = new AbortController()
+        this.subscriptions.add(() => abort.abort())
         this.extensionHost = options
-            .connectToExtensionHost()
-            .ready.then(connection =>
-                createExtensionHostClient<X, C>(connection, this._environment, this.registries, this)
-            )
+            .connectToExtensionHost(abort.signal)
+            .then(connection => createExtensionHostClient<X, C>(connection, this._environment, this.registries, this))
 
         this.subscriptions.add(() => {
             this.extensionHost

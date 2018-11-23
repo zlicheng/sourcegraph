@@ -1,4 +1,4 @@
-import { from, Subject, Unsubscribable } from 'rxjs'
+import { from, fromEvent, Subject, Unsubscribable } from 'rxjs'
 import { filter, map, mergeMap } from 'rxjs/operators'
 import { Controller as BaseController } from '../api/client/controller'
 import { Environment } from '../api/client/environment'
@@ -6,7 +6,7 @@ import { ExecuteCommandParams } from '../api/client/providers/command'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
-import { BrowserConsoleTracer, Trace } from '../api/protocol/jsonrpc2/trace'
+import { BrowserConsoleTracer } from '../api/protocol/jsonrpc2/trace'
 import { registerBuiltinClientCommands, updateConfiguration } from '../commands/commands'
 import { Notification } from '../notifications/notification'
 import { PlatformContext } from '../platform/context'
@@ -156,32 +156,23 @@ declare global {
  */
 export function createController(context: PlatformContext): Controller {
     const controller: Controller = new Controller({
-        connectToExtensionHost: () => {
-            const { messageTransports, unsubscribe: terminateExecutionContext } = context.createExecutionContext(
-                'TODO!(sqs): this is ignored'
-            )
-            const connection = messageTransports.then(messageTransports => {
-                const connection = createConnection(messageTransports)
-                connection.listen()
+        connectToExtensionHost: async signal => {
+            const messageTransports = await context.createExecutionContext('TODO!(sqs): this is ignored', signal)
+            const connection = createConnection(messageTransports)
+            connection.listen()
 
-                const initData: InitData = {
-                    sourcegraphURL: context.sourcegraphURL,
-                    clientApplication: context.clientApplication,
-                }
-                return connection.sendRequest('initialize', [initData]).then(() => connection)
-            })
-            return {
-                ready: connection,
-                unsubscribe: () => {
-                    try {
-                        connection.then(connection => connection.unsubscribe()).catch(err => console.error(err))
-                    } finally {
-                        // Terminate the execution context even if unsubscribing the connection
-                        // fails synchronously.
-                        terminateExecutionContext()
-                    }
-                },
+            const initData: InitData = {
+                sourcegraphURL: context.sourcegraphURL,
+                clientApplication: context.clientApplication,
             }
+            await connection.sendRequest('initialize', [initData], signal)
+
+            // TODO!(sqs): memory leak, is never unsubscribed
+            if (signal) {
+                fromEvent(signal, 'abort').subscribe(() => connection.unsubscribe())
+            }
+
+            return connection
         },
         environmentFilter,
     })

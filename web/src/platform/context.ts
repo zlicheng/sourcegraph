@@ -1,4 +1,5 @@
 import { isEqual } from 'lodash'
+import { fromEvent } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
 import ExtensionHostWorker from 'worker-loader!./extensionHost.worker'
 import { createWebWorkerMessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/transports/webWorker'
@@ -61,15 +62,17 @@ export function createPlatformContext(): PlatformContext {
             ),
         queryLSP: requests => sendLSPHTTPRequests(requests),
         forceUpdateTooltip: () => Tooltip.forceUpdate(),
-        createExecutionContext: (bundleURL: string) => {
+        createExecutionContext: (bundleURL, signal) => {
             // TODO!(sqs): bundleURL is ignored
             const worker = new ExtensionHostWorker()
-            const messageTransports = createWebWorkerMessageTransports(worker)
-            return {
-                messageTransports: Promise.resolve(messageTransports),
-                unsubscribe: () => worker.terminate(),
+            if (signal) {
+                // TODO!(sqs): memory leak, is never cleaned up
+                fromEvent(signal, 'abort').subscribe(() => worker.terminate())
             }
+            return Promise.resolve(createWebWorkerMessageTransports(worker))
         },
+        sourcegraphURL: window.context.externalURL,
+        clientApplication: 'sourcegraph',
     }
     return context
 }
