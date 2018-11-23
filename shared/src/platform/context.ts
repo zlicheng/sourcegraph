@@ -1,4 +1,4 @@
-import { Subscribable } from 'rxjs'
+import { Observable, Subscribable } from 'rxjs'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
@@ -62,10 +62,10 @@ export interface PlatformContext {
      * @param entrypointURL The URL to a JavaScript source file that is executed in the newly
      * created execution context.
      * @param signal An optional abort signal to terminate the execution context.
-     * @returns A promise that, when the execution context is ready, resolves to message transports
-     * for communicating with it (using, e.g., postMessage/onmessage).
+     * @returns An observable that emits at most once with the message transports for communicating
+     * with the execution context (using, e.g., postMessage/onmessage) when it is ready.
      */
-    createExecutionContext(entrypointURL: string, signal?: AbortSignal): Promise<MessageTransports>
+    createExecutionContext(entrypointURL: string): Observable<MessageTransports>
 
     /**
      * The URL to the Sourcegraph site that the user's session is associated with. This refers to

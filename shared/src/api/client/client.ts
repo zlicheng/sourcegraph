@@ -1,5 +1,5 @@
-import { BehaviorSubject, from, Subscription, Unsubscribable } from 'rxjs'
-import { distinctUntilChanged, map, switchMap, tap } from 'rxjs/operators'
+import { BehaviorSubject, from, Subscription } from 'rxjs'
+import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
 import { ContextValues } from 'sourcegraph'
 import {
     ConfigurationUpdateParams,
@@ -22,32 +22,13 @@ import { ClientRoots } from './api/roots'
 import { Search } from './api/search'
 import { ClientViews } from './api/views'
 import { ClientWindows } from './api/windows'
-import { ExtensionHostClient } from './client'
 import { applyContextUpdate } from './context/context'
 import { ControllerHelpers } from './controller'
 import { Environment } from './environment'
 import { Extension } from './extension'
 import { Registries } from './registries'
 
-/**
- * The client application's connection to the extension host.
- */
-// TODO!(sqs): does this make sense to live in this dir, or in shared/src/extensions (where the client code lives)?
-export interface ExtensionHostClient2 extends Unsubscribable {
-    /**
-     * A promise that resolves when the connection is established.
-     */
-    ready: Promise<Connection>
-
-    /**
-     * Closes the connection to and terminates the extension host.
-     */
-    unsubscribe(): void
-}
-
-export interface ExtensionHostClient {
-    // TODO!(sqs): some way of knowing when the client was closed unexpectedly, like an observable or onClose/onError
-
+interface ExtensionHostClient {
     /**
      * Sets or unsets the tracer to use for logging all of this client's messages to/from the
      * extension host.
@@ -184,7 +165,7 @@ export function createExtensionHostClient<X extends Extension, C extends Setting
     return {
         setTracer: tracer => {
             connection.trace(tracer)
-        }
+        },
         unsubscribe: () => subscription.unsubscribe(),
     }
 }

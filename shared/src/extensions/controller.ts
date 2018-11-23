@@ -1,5 +1,5 @@
-import { from, fromEvent, Subject, Unsubscribable } from 'rxjs'
-import { filter, map, mergeMap } from 'rxjs/operators'
+import { from, Subject, Unsubscribable } from 'rxjs'
+import { filter, map, mergeMap, switchMap, tap } from 'rxjs/operators'
 import { Controller as BaseController } from '../api/client/controller'
 import { Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
@@ -156,24 +156,20 @@ declare global {
  */
 export function createController(context: PlatformContext): Controller {
     const controller: Controller = new Controller({
-        connectToExtensionHost: async signal => {
-            const messageTransports = await context.createExecutionContext('TODO!(sqs): this is ignored', signal)
-            const connection = createConnection(messageTransports)
-            connection.listen()
+        connectToExtensionHost: () =>
+            context.createExecutionContext('TODO!(sqs): this is ignored').pipe(
+                switchMap(async messageTransports => {
+                    const connection = createConnection(messageTransports)
+                    connection.listen()
 
-            const initData: InitData = {
-                sourcegraphURL: context.sourcegraphURL,
-                clientApplication: context.clientApplication,
-            }
-            await connection.sendRequest('initialize', [initData], signal)
-
-            // TODO!(sqs): memory leak, is never unsubscribed
-            if (signal) {
-                fromEvent(signal, 'abort').subscribe(() => connection.unsubscribe())
-            }
-
-            return connection
-        },
+                    const initData: InitData = {
+                        sourcegraphURL: context.sourcegraphURL,
+                        clientApplication: context.clientApplication,
+                    }
+                    await connection.sendRequest('initialize', [initData])
+                    return connection
+                })
+            ),
         environmentFilter,
     })
 

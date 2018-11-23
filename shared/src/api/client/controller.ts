@@ -1,4 +1,5 @@
 import { BehaviorSubject, Observable, of, Subject, Subscription, Unsubscribable } from 'rxjs'
+import { finalize, map } from 'rxjs/operators'
 import {
     ConfigurationUpdateParams,
     LogMessageParams,
@@ -10,7 +11,7 @@ import {
 } from '../protocol'
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { isEqual } from '../util'
-import { createExtensionHostClient, ExtensionHostClient } from './client'
+import { createExtensionHostClient } from './client'
 import { EMPTY_CONTEXT } from './context/context'
 import { EMPTY_ENVIRONMENT, Environment } from './environment'
 import { Extension } from './extension'
@@ -33,7 +34,10 @@ export type ConfigurationUpdate = ConfigurationUpdateParams & PromiseCallback<vo
  * @template C settings cascade type
  */
 export interface ControllerOptions<X extends Extension, C extends SettingsCascade> {
-    connectToExtensionHost(signal?: AbortSignal): Promise<Connection>
+    /**
+     * @returns An observable that emits at most once (TODO!(sqs): or multiple times? to handle connection drops/reestablishments).
+     */
+    connectToExtensionHost(): Observable<Connection>
 
     /**
      * Called before applying the next environment in Controller#setEnvironment. It should have no side effects.
@@ -93,11 +97,6 @@ export class Controller<X extends Extension, C extends SettingsCascade>
         return of([])
     }
 
-    /**
-     * The client application's connection to the extension host.
-     */
-    private extensionHost: Promise<ExtensionHostClient>
-
     private subscriptions = new Subscription()
 
     /** The registries for various providers that expose extension functionality. */
@@ -117,17 +116,22 @@ export class Controller<X extends Extension, C extends SettingsCascade>
     constructor(private options: ControllerOptions<X, C>) {
         this.registries = new Registries<X, C>(this.environment)
 
-        const abort = new AbortController()
-        this.subscriptions.add(() => abort.abort())
-        this.extensionHost = options
-            .connectToExtensionHost(abort.signal)
-            .then(connection => createExtensionHostClient<X, C>(connection, this._environment, this.registries, this))
-
-        this.subscriptions.add(() => {
-            this.extensionHost
-                .then(extensionHost => extensionHost.unsubscribe())
-                .catch(err => console.warn('Error unsubscribing extension host:', err))
-        })
+        this.subscriptions.add(
+            options
+                .connectToExtensionHost()
+                .pipe(
+                    map(connection => {
+                        const client = createExtensionHostClient<X, C>(
+                            connection,
+                            this._environment,
+                            this.registries,
+                            this
+                        )
+                        return of(client).pipe(finalize(() => client.unsubscribe()))
+                    })
+                )
+                .subscribe()
+        )
     }
 
     /**
