@@ -62,6 +62,31 @@ export interface PlatformContext {
      * created execution context.
      */
     createExecutionContext(entrypointURL: string): ExecutionContext
+
+    /**
+     * The URL to the Sourcegraph site that the user's session is associated with. This refers to
+     * Sourcegraph.com (`https://sourcegraph.com`) by default, or a self-hosted instance of
+     * Sourcegraph.
+     *
+     * This is available to extensions in `sourcegraph.internal.sourcegraphURL`.
+     *
+     * @todo Consider removing this when https://github.com/sourcegraph/sourcegraph/issues/566 is
+     * fixed.
+     *
+     * @example `https://sourcegraph.com`
+     */
+    sourcegraphURL: string
+
+    /**
+     * The client application that is running this extension, either 'sourcegraph' for Sourcegraph
+     * or 'other' for all other applications (such as GitHub, GitLab, etc.).
+     *
+     * This is available to extensions in `sourcegraph.internal.clientApplication`.
+     *
+     * @todo Consider removing this when https://github.com/sourcegraph/sourcegraph/issues/566 is
+     * fixed.
+     */
+    clientApplication: 'sourcegraph' | 'other'
 }
 
 /**

@@ -34,14 +34,6 @@ export type ConfigurationUpdate = ConfigurationUpdateParams & PromiseCallback<vo
 export interface ControllerOptions<X extends Extension, C extends SettingsCascade> {
     connectToExtensionHost(): ExtensionHostClient2
 
-    // TODO!(sqs): remove
-    //
-    // /** Returns additional options to use when creating a client. */
-    // clientOptions: (
-    //     key: ExtensionConnectionKey,
-    //     extension: X
-    // ) => { createMessageTransports: () => MessageTransports | Promise<MessageTransports> }
-
     /**
      * Called before applying the next environment in Controller#setEnvironment. It should have no side effects.
      */
@@ -81,7 +73,8 @@ export interface ControllerHelpers<X extends Extension> {
 }
 
 /**
- * The controller for the environment.
+ * The controller. TODO!(sqs), make this for all shared code and the internal "extension" API, not
+ * just cross-context extensions.
  *
  * @template X extension type
  * @template C settings cascade type
@@ -115,7 +108,7 @@ export class Controller<X extends Extension, C extends SettingsCascade>
     public readonly showInputs = new Subject<ShowInputRequest>()
     public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
 
-    // TODO!(sqs): extract, remove any case
+    // TODO!(sqs): extract, remove any cast
     public getScriptURLForExtension(extension: X): string {
         return (extension as any).manifest.url // TODO!(sqs)
     }
@@ -128,11 +121,11 @@ export class Controller<X extends Extension, C extends SettingsCascade>
             .ready.then(connection =>
                 createExtensionHostClient<X, C>(connection, this._environment, this.registries, this)
             )
+
         this.subscriptions.add(() => {
-            // TODO!(sqs): hacky
             this.extensionHost
                 .then(extensionHost => extensionHost.unsubscribe())
-                .catch(err => console.error('TODO!(sqs) 9832432', err))
+                .catch(err => console.warn('Error unsubscribing extension host:', err))
         })
     }
 

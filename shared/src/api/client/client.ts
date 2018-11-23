@@ -39,23 +39,6 @@ export interface ExtensionHostClient2 extends Unsubscribable {
      */
     ready: Promise<Connection>
 
-    // TODO!(sqs)
-    //
-    // /**
-    //  * Loads an extension in the execution context and calls its `activate` function.
-    //  *
-    //  * Callers should wait for {@link ExtensionHostConnection#ready} to resolve before calling
-    //  * {@link ExtensionHostConnection#activateExtension}. This makes it possible to clearly
-    //  * attribute errors to either the initial connection establishment or to the activation of a
-    //  * specific extension.
-    //  *
-    //  * @param bundleURL The URL to the extension's JavaScript bundle (which must export an
-    //  * `activate` function).
-    //  */
-    // activateExtension(bundleURL: string): Promise<void>
-
-    // TODO!(sqs): how to deactivate extensions from here?
-
     /**
      * Closes the connection to and terminates the extension host.
      */

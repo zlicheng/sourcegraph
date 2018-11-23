@@ -160,26 +160,18 @@ export function createController(context: PlatformContext): Controller {
             const { messageTransports, unsubscribe: terminateExecutionContext } = context.createExecutionContext(
                 'TODO!(sqs): this is ignored'
             )
-            const connection = messageTransports.then(async messageTransports => {
+            const connection = messageTransports.then(messageTransports => {
                 const connection = createConnection(messageTransports)
                 connection.listen()
 
-                // TODO!(sqs): add type for initialize request JSON-RPC 2.0 message
-                await connection.sendRequest('initialize', [
-                    {
-                        clientApplication: 'sourcegraph', // TODO!(sqs): set this differentially based on actual client application
-                        sourcegraphURL: 'TODO!(sqs)', // TODO!(sqs): set this differentially based on actual client application
-                    } as InitData,
-                ])
-
-                return connection
+                const initData: InitData = {
+                    sourcegraphURL: context.sourcegraphURL,
+                    clientApplication: context.clientApplication,
+                }
+                return connection.sendRequest('initialize', [initData]).then(() => connection)
             })
             return {
                 ready: connection,
-                // activateExtension: bundleURL =>
-                //     connection
-                //         .then(connection => connection.sendRequest('activateExtension', [bundleURL]))
-                //         .then(() => void 0),
                 unsubscribe: () => {
                     try {
                         connection.then(connection => connection.unsubscribe()).catch(err => console.error(err))
