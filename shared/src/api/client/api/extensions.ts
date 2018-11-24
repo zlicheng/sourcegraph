@@ -74,3 +74,46 @@ export class ClientExtensions {
         this.subscriptions.unsubscribe()
     }
 }
+
+// TODO!(sqs): reintroduce this
+//
+// /**
+//  * Filter the environment to omit extensions that should not be activated (based on their manifest's
+//  * activationEvents).
+//  */
+// function environmentFilter(
+//     nextEnvironment: Environment<ConfiguredExtension, SettingsCascade>
+// ): Environment<ConfiguredExtension, SettingsCascade> {
+//     return {
+//         ...nextEnvironment,
+//         extensions:
+//             nextEnvironment.extensions &&
+//             nextEnvironment.extensions.filter(x => {
+//                 try {
+//                     if (!isExtensionEnabled(nextEnvironment.configuration.final, x.id)) {
+//                         return false
+//                     } else if (!x.manifest) {
+//                         console.warn(
+//                             `Extension ${x.id} was not found. Remove it from settings to suppress this warning.`
+//                         )
+//                         return false
+//                     } else if (isErrorLike(x.manifest)) {
+//                         console.warn(asError(x.manifest))
+//                         return false
+//                     } else if (!x.manifest.activationEvents) {
+//                         console.warn(`Extension ${x.id} has no activation events, so it will never be activated.`)
+//                         return false
+//                     }
+//                     const visibleTextDocumentLanguages = nextEnvironment.visibleTextDocuments
+//                         ? nextEnvironment.visibleTextDocuments.map(({ languageId }) => languageId)
+//                         : []
+//                     return x.manifest.activationEvents.some(
+//                         e => e === '*' || visibleTextDocumentLanguages.some(l => e === `onLanguage:${l}`)
+//                     )
+//                 } catch (err) {
+//                     console.error(err)
+//                 }
+//                 return false
+//             }),
+//     }
+// }

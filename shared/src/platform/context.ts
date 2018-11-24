@@ -1,5 +1,6 @@
 import { Observable, Subscribable } from 'rxjs'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
+import { ConfiguredExtension } from '../extensions/extension'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { UpdateExtensionSettingsArgs } from '../settings/edit'
@@ -63,6 +64,19 @@ export interface PlatformContext {
      * with the execution context (using, e.g., postMessage/onmessage) when it is ready.
      */
     createExtensionHost(): Observable<MessageTransports>
+
+    /**
+     * Returns the script URL suitable for passing to importScripts for an extension's bundle.
+     *
+     * This is necessary because some platforms (such as Chrome extensions) use a script-src CSP
+     * that would prevent loading bundles from arbitrary URLs, which requires us to pass blob: URIs
+     * to importScripts.
+     *
+     * @param bundleURL The URL to the JavaScript bundle file specified in the extension manifest.
+     * @return A script URL suitable for passing to importScripts, typically either the original
+     * https:// URL for the extension's bundle or a blob: URI for it.
+     */
+    getScriptURLForExtension(bundleURL: string): string | Promise<string>
 
     /**
      * The URL to the Sourcegraph site that the user's session is associated with. This refers to

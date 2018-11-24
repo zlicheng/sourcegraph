@@ -1,6 +1,5 @@
 import { BehaviorSubject, Observable, of, Subject, Subscription, Unsubscribable } from 'rxjs'
 import { finalize, map } from 'rxjs/operators'
-import { isErrorLike } from '../../util/errors'
 import {
     ConfigurationUpdateParams,
     LogMessageParams,
@@ -39,11 +38,6 @@ export interface ControllerOptions<X extends Extension, C extends SettingsCascad
      * @returns An observable that emits at most once (TODO!(sqs): or multiple times? to handle connection drops/reestablishments).
      */
     connectToExtensionHost(): Observable<Connection>
-
-    /**
-     * Called before applying the next environment in Controller#setEnvironment. It should have no side effects.
-     */
-    environmentFilter?(nextEnvironment: Environment<X, C>): Environment<X, C>
 }
 
 export interface ControllerHelpers<X extends Extension> {
@@ -63,19 +57,6 @@ export interface ControllerHelpers<X extends Extension> {
 
     /** Configuration updates from extensions. */
     readonly configurationUpdates: Subject<ConfigurationUpdate>
-
-    /**
-     * Returns the script URL suitable for passing to importScripts for an extension's bundle.
-     *
-     * This is necessary because some platforms (such as Chrome extensions) use a script-src CSP
-     * that would prevent loading bundles from arbitrary URLs, which requires us to pass blob: URIs
-     * to importScripts.
-     *
-     * @param extension The extension whose script URL to get.
-     * @return A script URL suitable for passing to importScripts, typically either the original
-     * https:// URL for the extension's bundle or a blob: URI for it.
-     */
-    getScriptURLForExtension(extension: X): string | Promise<string>
 }
 
 /**
@@ -109,24 +90,7 @@ export class Controller<X extends Extension, C extends SettingsCascade>
     public readonly showInputs = new Subject<ShowInputRequest>()
     public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
 
-    public getScriptURLForExtension(extension: X): string {
-        if (!extension.manifest) {
-            throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no manifest found`)
-        }
-        if (isErrorLike(extension.manifest)) {
-            throw new Error(
-                `unable to run extension ${JSON.stringify(extension.id)}: invalid manifest: ${
-                    extension.manifest.message
-                }`
-            )
-        }
-        if (!extension.manifest.url) {
-            throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
-        }
-        return extension.manifest.url
-    }
-
-    constructor(private options: ControllerOptions<X, C>) {
+    constructor(options: ControllerOptions<X, C>) {
         this.registries = new Registries<X, C>(this.environment)
 
         this.subscriptions.add(
@@ -159,10 +123,6 @@ export class Controller<X extends Extension, C extends SettingsCascade>
         this.inSetEnvironment = true
 
         try {
-            if (this.options.environmentFilter) {
-                nextEnvironment = this.options.environmentFilter(nextEnvironment)
-            }
-
             // External consumers don't see context, and their setEnvironment args lack context.
             if (nextEnvironment.context === EMPTY_CONTEXT) {
                 nextEnvironment = { ...nextEnvironment, context: this._environment.value.context }

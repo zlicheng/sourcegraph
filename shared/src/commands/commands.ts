@@ -13,9 +13,9 @@ import { isErrorLike } from '../util/errors'
  * {@link module:sourcegraph.module/protocol/contribution.ActionContribution#command} for
  * documentation.
  */
-export function registerBuiltinClientCommands<E extends Extension>(
+export function registerBuiltinClientCommands<X extends Extension>(
     context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings' | 'queryGraphQL' | 'queryLSP'>,
-    controller: Controller<E, SettingsCascade>
+    controller: Controller<X, SettingsCascade>
 ): Unsubscribable {
     const subscription = new Subscription()
 

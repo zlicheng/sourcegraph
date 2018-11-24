@@ -1,6 +1,7 @@
 import { BehaviorSubject, from, Subscription } from 'rxjs'
 import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
 import { ContextValues } from 'sourcegraph'
+import { getScriptURLFromExtensionManifest } from '../../extensions/extension'
 import {
     ConfigurationUpdateParams,
     MessageActionItem,
@@ -99,10 +100,14 @@ export function createExtensionHostClient<X extends Extension, C extends Setting
                             ? from(
                                   Promise.all(
                                       extensions.map(x =>
-                                          Promise.resolve(helpers.getScriptURLForExtension(x)).then(scriptURL => ({
+                                          Promise.resolve({
                                               id: x.id,
-                                              scriptURL,
-                                          }))
+                                              // TODO!(sqs): log errors but do not throw here
+                                              //
+                                              // TODO!(sqs): also apply
+                                              // PlatformContext.getScriptURLForExtension here for browser ext
+                                              scriptURL: getScriptURLFromExtensionManifest(x),
+                                          })
                                       )
                                   )
                               )

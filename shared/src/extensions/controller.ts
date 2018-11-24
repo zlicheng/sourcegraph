@@ -1,20 +1,17 @@
 import { from, Subject, Unsubscribable } from 'rxjs'
 import { filter, map, mergeMap, switchMap } from 'rxjs/operators'
 import { Controller as BaseController } from '../api/client/controller'
-import { Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
-import { BrowserConsoleTracer } from '../api/protocol/jsonrpc2/trace'
 import { registerBuiltinClientCommands, updateConfiguration } from '../commands/commands'
 import { Notification } from '../notifications/notification'
 import { PlatformContext } from '../platform/context'
 import { ExtensionManifest } from '../schema/extension.schema'
 import { SettingsCascade } from '../settings/settings'
-import { asError, isErrorLike } from '../util/errors'
-import { ConfiguredExtension, isExtensionEnabled } from './extension'
-import { ExtensionStatus } from './ExtensionStatus'
+import { isErrorLike } from '../util/errors'
+import { ConfiguredExtension } from './extension'
 
 /**
  * Extends the {@link BaseController} class to add functionality that is useful to this package's consumers.
@@ -56,47 +53,6 @@ export interface ExtensionsControllerProps {
     extensionsController: Controller
 }
 
-/**
- * Filter the environment to omit extensions that should not be activated (based on their manifest's
- * activationEvents).
- */
-function environmentFilter(
-    nextEnvironment: Environment<ConfiguredExtension, SettingsCascade>
-): Environment<ConfiguredExtension, SettingsCascade> {
-    return {
-        ...nextEnvironment,
-        extensions:
-            nextEnvironment.extensions &&
-            nextEnvironment.extensions.filter(x => {
-                try {
-                    if (!isExtensionEnabled(nextEnvironment.configuration.final, x.id)) {
-                        return false
-                    } else if (!x.manifest) {
-                        console.warn(
-                            `Extension ${x.id} was not found. Remove it from settings to suppress this warning.`
-                        )
-                        return false
-                    } else if (isErrorLike(x.manifest)) {
-                        console.warn(asError(x.manifest))
-                        return false
-                    } else if (!x.manifest.activationEvents) {
-                        console.warn(`Extension ${x.id} has no activation events, so it will never be activated.`)
-                        return false
-                    }
-                    const visibleTextDocumentLanguages = nextEnvironment.visibleTextDocuments
-                        ? nextEnvironment.visibleTextDocuments.map(({ languageId }) => languageId)
-                        : []
-                    return x.manifest.activationEvents.some(
-                        e => e === '*' || visibleTextDocumentLanguages.some(l => e === `onLanguage:${l}`)
-                    )
-                } catch (err) {
-                    console.error(err)
-                }
-                return false
-            }),
-    }
-}
-
 declare global {
     interface Window {
         sx: any
@@ -130,20 +86,21 @@ export function createController(context: PlatformContext): Controller {
                     return connection
                 })
             ),
-        environmentFilter,
     })
 
+    // TODO!(sqs): reintroduce
+    //
     // Apply trace settings.
     //
     // HACK(sqs): This is inefficient and doesn't unsubscribe itself.
-    controller.clientEntries.subscribe(entries => {
-        const traceEnabled = localStorage.getItem(ExtensionStatus.TRACE_STORAGE_KEY) !== null
-        for (const e of entries) {
-            e.connection
-                .then(c => c.trace(traceEnabled ? Trace.Verbose : Trace.Off, new BrowserConsoleTracer(e.key.id)))
-                .catch(err => console.error(err))
-        }
-    })
+    // controller.clientEntries.subscribe(entries => {
+    //     const traceEnabled = localStorage.getItem(ExtensionStatus.TRACE_STORAGE_KEY) !== null
+    //     for (const e of entries) {
+    //         e.connection
+    //             .then(c => c.trace(traceEnabled ? Trace.Verbose : Trace.Off, new BrowserConsoleTracer(e.key.id)))
+    //             .catch(err => console.error(err))
+    //     }
+    // })
 
     registerBuiltinClientCommands(context, controller)
     registerExtensionContributions(controller)
