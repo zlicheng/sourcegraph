@@ -1,6 +1,6 @@
 import { from, Subject, Unsubscribable } from 'rxjs'
 import { filter, map, mergeMap, switchMap } from 'rxjs/operators'
-import { Client } from '../api/client/client'
+import { ExtensionHostClient } from '../api/client/client'
 import { ExecuteCommandParams } from '../api/client/providers/command'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
@@ -13,11 +13,9 @@ import { SettingsCascade } from '../settings/settings'
 import { isErrorLike } from '../util/errors'
 import { ConfiguredExtension } from './extension'
 
-/**
- * Extends the {@link BaseController} class to add functionality that is useful to this package's consumers.
- */
 export class Controller {
-    private client: Client<ConfiguredExtension, SettingsCascade>
+    private client: ExtensionHostClient
+
     /**
      * Global notification messages that should be displayed to the user, from the following sources:
      *
@@ -52,13 +50,6 @@ export interface ExtensionsControllerProps {
      * environment.
      */
     extensionsController: Controller
-}
-
-declare global {
-    interface Window {
-        sx: any
-        sxenv: any
-    }
 }
 
 /**

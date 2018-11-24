@@ -1,10 +1,10 @@
 import * as assert from 'assert'
 import { Observable } from 'rxjs'
 import { first } from 'rxjs/operators'
-import { ActivatedExtension, Client, ExtensionConnectionKey } from './client'
+import { ActivatedExtension, ExtensionHostClient, ExtensionConnectionKey } from './client'
 import { EMPTY_ENVIRONMENT, Environment } from './environment'
 
-class TestClient extends Client<any, any> {
+class TestClient extends ExtensionHostClient<any, any> {
     public get clientEntries(): Observable<ActivatedExtension[]> & { value: ActivatedExtension[] } {
         let value!: ActivatedExtension[]
         super.clientEntries

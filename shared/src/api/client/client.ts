@@ -4,7 +4,6 @@ import {
     ConfigurationUpdateParams,
     LogMessageParams,
     MessageActionItem,
-    SettingsCascade,
     ShowInputParams,
     ShowMessageParams,
     ShowMessageRequestParams,
@@ -12,7 +11,6 @@ import {
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { createExtensionHostClientConnection } from './connection'
 import { Environment } from './environment'
-import { Extension } from './extension'
 import { Registries } from './registries'
 
 interface PromiseCallback<T> {
@@ -60,11 +58,8 @@ export interface ClientHelpers {
 /**
  * The client. TODO!(sqs), make this for all shared code and the internal "extension" API, not
  * just cross-context extensions.
- *
- * @template X extension type
- * @template C settings cascade type
  */
-export class Client<X extends Extension, C extends SettingsCascade> implements ClientHelpers, Unsubscribable {
+export class ExtensionHostClient implements ClientHelpers, Unsubscribable {
     /** An observable that emits whenever the set of clients managed by this client changes. */
     // TODO!(sqs): implement
     public get clientEntries(): Observable<any[]> {
@@ -82,20 +77,15 @@ export class Client<X extends Extension, C extends SettingsCascade> implements C
     constructor(
         // TODO!(sqs): make it possible to just use an observable of environment, not
         // behaviorsubject, to simplify data flow
-        environment: BehaviorSubject<Environment<X, C>>,
-        registries: Registries<X, C>,
+        environment: BehaviorSubject<Environment>,
+        registries: Registries,
         extensionHostConnection: Observable<Connection>
     ) {
         this.subscriptions.add(
             extensionHostConnection
                 .pipe(
                     map(connection => {
-                        const client = createExtensionHostClientConnection<X, C>(
-                            connection,
-                            environment,
-                            registries,
-                            this
-                        )
+                        const client = createExtensionHostClientConnection(connection, environment, registries, this)
                         return of(client).pipe(finalize(() => client.unsubscribe()))
                     })
                 )

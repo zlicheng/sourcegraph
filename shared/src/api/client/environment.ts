@@ -10,6 +10,7 @@ import { TextDocumentItem } from './types/textDocument'
  * This models the state of editor-like tools that display documents, allow selections and scrolling
  * in documents, and support extension configuration.
  *
+ * // TODO!(sqs): get rid of generic type params?
  * @template X extension type, to support storing additional properties on extensions
  * @template C settings cascade type
  */

@@ -1,11 +1,9 @@
 import { isArray } from 'lodash-es'
 import { from, Subscription, throwError, Unsubscribable } from 'rxjs'
 import { switchMap, take } from 'rxjs/operators'
-import { Client } from '../api/client/client'
-import { Extension } from '../api/client/extension'
+import { ExtensionHostClient } from '../api/client/client'
 import { ActionContributionClientCommandUpdateConfiguration, ConfigurationUpdateParams } from '../api/protocol'
 import { PlatformContext } from '../platform/context'
-import { SettingsCascade } from '../settings/settings'
 import { isErrorLike } from '../util/errors'
 
 /**
@@ -13,14 +11,14 @@ import { isErrorLike } from '../util/errors'
  * {@link module:sourcegraph.module/protocol/contribution.ActionContribution#command} for
  * documentation.
  */
-export function registerBuiltinClientCommands<X extends Extension>(
+export function registerBuiltinClientCommands(
     context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings' | 'queryGraphQL' | 'queryLSP'>,
-    controller: Client<X, SettingsCascade>
+    client: ExtensionHostClient
 ): Unsubscribable {
     const subscription = new Subscription()
 
     subscription.add(
-        controller.registries.commands.registerCommand({
+        client.registries.commands.registerCommand({
             command: 'open',
             run: (url: string) => {
                 // The `open` client command is usually implemented by ActionItem rendering the action with the
@@ -36,7 +34,7 @@ export function registerBuiltinClientCommands<X extends Extension>(
     )
 
     subscription.add(
-        controller.registries.commands.registerCommand({
+        client.registries.commands.registerCommand({
             command: 'openPanel',
             run: (viewID: string) => {
                 // As above for `open`, the `openPanel` client command is usually implemented by an HTML <a>
@@ -48,7 +46,7 @@ export function registerBuiltinClientCommands<X extends Extension>(
     )
 
     subscription.add(
-        controller.registries.commands.registerCommand({
+        client.registries.commands.registerCommand({
             command: 'updateConfiguration',
             run: (...anyArgs: any[]): Promise<void> => {
                 const args = anyArgs as ActionContributionClientCommandUpdateConfiguration['commandArguments']
@@ -62,7 +60,7 @@ export function registerBuiltinClientCommands<X extends Extension>(
      * with the privileges of the current user.
      */
     subscription.add(
-        controller.registries.commands.registerCommand({
+        client.registries.commands.registerCommand({
             command: 'queryGraphQL',
             run: (query: string, variables: { [name: string]: any }): Promise<any> =>
                 // 🚨 SECURITY: The request might contain private info (such as
@@ -79,7 +77,7 @@ export function registerBuiltinClientCommands<X extends Extension>(
      * performed with the privileges of the current user.
      */
     subscription.add(
-        controller.registries.commands.registerCommand({
+        client.registries.commands.registerCommand({
             command: 'queryLSP',
             run: requests => from(context.queryLSP(requests)).toPromise(),
         })

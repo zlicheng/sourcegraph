@@ -5,7 +5,6 @@ import { getScriptURLFromExtensionManifest } from '../../extensions/extension'
 import {
     ConfigurationUpdateParams,
     MessageActionItem,
-    SettingsCascade,
     ShowInputParams,
     ShowMessageParams,
     ShowMessageRequestParams,
@@ -26,7 +25,6 @@ import { ClientWindows } from './api/windows'
 import { ClientHelpers } from './client'
 import { applyContextUpdate } from './context/context'
 import { Environment } from './environment'
-import { Extension } from './extension'
 import { Registries } from './registries'
 
 export interface ExtensionHostClientConnection {
@@ -57,10 +55,10 @@ export interface ActivatedExtension {
     deactivate(): void | Promise<void>
 }
 
-export function createExtensionHostClientConnection<X extends Extension, C extends SettingsCascade>(
+export function createExtensionHostClientConnection(
     connection: Connection,
-    environment: BehaviorSubject<Environment<X, C>>,
-    registries: Registries<X, C>,
+    environment: BehaviorSubject<Environment>,
+    registries: Registries,
     helpers: ClientHelpers
 ): ExtensionHostClientConnection {
     const subscription = new Subscription()

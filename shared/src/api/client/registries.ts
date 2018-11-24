@@ -1,7 +1,5 @@
 import { Observable } from 'rxjs'
-import { SettingsCascade } from '../protocol'
 import { Environment } from './environment'
-import { Extension } from './extension'
 import { CommandRegistry } from './providers/command'
 import { ContributionRegistry } from './providers/contribution'
 import { TextDocumentDecorationProviderRegistry } from './providers/decoration'
@@ -12,12 +10,9 @@ import { ViewProviderRegistry } from './providers/view'
 
 /**
  * Registries is a container for all provider registries.
- *
- * @template X extension type
- * @template C settings cascade type
  */
-export class Registries<X extends Extension, C extends SettingsCascade> {
-    constructor(private environment: Observable<Environment<X, C>>) {}
+export class Registries {
+    constructor(private environment: Observable<Environment>) {}
 
     public readonly commands = new CommandRegistry()
     public readonly contribution = new ContributionRegistry(this.environment)
