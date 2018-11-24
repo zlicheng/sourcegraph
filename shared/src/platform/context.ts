@@ -1,6 +1,5 @@
 import { Observable, Subscribable } from 'rxjs'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
-import { ConfiguredExtension } from '../extensions/extension'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { UpdateExtensionSettingsArgs } from '../settings/edit'

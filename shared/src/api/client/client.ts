@@ -23,20 +23,7 @@ type ShowInputRequest = ShowInputParams & PromiseCallback<string | null>
 
 export type ConfigurationUpdate = ConfigurationUpdateParams & PromiseCallback<void>
 
-/**
- * Options for creating the client.
- *
- * @template X extension type
- * @template C settings cascade type
- */
-export interface ClientOptions {
-    /**
-     * @returns An observable that emits at most once (TODO!(sqs): or multiple times? to handle connection drops/reestablishments).
-     */
-    connectToExtensionHost(): Observable<Connection>
-}
-
-export interface ClientHelpers {
+export interface ExtensionHostClientObservables {
     // TODO!(sqs): make not subjects but just observables
 
     /** Log messages from extensions. */
@@ -55,45 +42,48 @@ export interface ClientHelpers {
     readonly configurationUpdates: Subject<ConfigurationUpdate>
 }
 
+export interface ExtensionHostClient extends ExtensionHostClientObservables, Unsubscribable {
+    /**
+     * Closes the connection to the extension host and stops the controller from reestablishing new
+     * connections.
+     */
+    unsubscribe(): void
+}
+
 /**
- * The client. TODO!(sqs), make this for all shared code and the internal "extension" API, not
- * just cross-context extensions.
+ * The client. TODO!(sqs), make this for all shared code and the internal "extension" API, not just
+ * cross-context extensions.
+ *
+ * @param extensionHostConnection An observable that emits at most once (TODO!(sqs): or multiple
+ * times? to handle connection drops/reestablishments).
  */
-export class ExtensionHostClient implements ClientHelpers, Unsubscribable {
-    /** An observable that emits whenever the set of clients managed by this client changes. */
-    // TODO!(sqs): implement
-    public get clientEntries(): Observable<any[]> {
-        return of([])
+export function createExtensionHostClient(
+    // TODO!(sqs): make it possible to just use an observable of environment, not
+    // behaviorsubject, to simplify data flow
+    environment: BehaviorSubject<Environment>,
+    registries: Registries,
+    extensionHostConnection: Observable<Connection>
+): ExtensionHostClient {
+    const subscriptions = new Subscription()
+    const observables: ExtensionHostClientObservables = {
+        logMessages: new Subject<LogMessageParams>(),
+        showMessages: new Subject<ShowMessageParams>(),
+        showMessageRequests: new Subject<ShowMessageRequest>(),
+        showInputs: new Subject<ShowInputRequest>(),
+        configurationUpdates: new Subject<ConfigurationUpdate>(),
     }
-
-    private subscriptions = new Subscription()
-
-    public readonly logMessages = new Subject<LogMessageParams>()
-    public readonly showMessages = new Subject<ShowMessageParams>()
-    public readonly showMessageRequests = new Subject<ShowMessageRequest>()
-    public readonly showInputs = new Subject<ShowInputRequest>()
-    public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
-
-    constructor(
-        // TODO!(sqs): make it possible to just use an observable of environment, not
-        // behaviorsubject, to simplify data flow
-        environment: BehaviorSubject<Environment>,
-        registries: Registries,
-        extensionHostConnection: Observable<Connection>
-    ) {
-        this.subscriptions.add(
-            extensionHostConnection
-                .pipe(
-                    map(connection => {
-                        const client = createExtensionHostClientConnection(connection, environment, registries, this)
-                        return of(client).pipe(finalize(() => client.unsubscribe()))
-                    })
-                )
-                .subscribe()
-        )
-    }
-
-    public unsubscribe(): void {
-        this.subscriptions.unsubscribe()
+    subscriptions.add(
+        extensionHostConnection
+            .pipe(
+                map(connection => {
+                    const client = createExtensionHostClientConnection(connection, environment, registries, observables)
+                    return of(client).pipe(finalize(() => client.unsubscribe()))
+                })
+            )
+            .subscribe()
+    )
+    return {
+        ...observables,
+        unsubscribe: () => subscriptions.unsubscribe(),
     }
 }

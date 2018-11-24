@@ -1,7 +1,10 @@
-import { from, Subject, Unsubscribable } from 'rxjs'
+import { BehaviorSubject, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
 import { filter, map, mergeMap, switchMap } from 'rxjs/operators'
-import { ExtensionHostClient } from '../api/client/client'
+import { createExtensionHostClient } from '../api/client/client'
+import { EMPTY_ENVIRONMENT, Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
+import { ContributionRegistry } from '../api/client/providers/contribution'
+import { Registries } from '../api/client/registries'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
@@ -9,20 +12,19 @@ import { registerBuiltinClientCommands, updateConfiguration } from '../commands/
 import { Notification } from '../notifications/notification'
 import { PlatformContext } from '../platform/context'
 import { ExtensionManifest } from '../schema/extension.schema'
-import { SettingsCascade } from '../settings/settings'
 import { isErrorLike } from '../util/errors'
 import { ConfiguredExtension } from './extension'
 
-export class Controller {
-    private client: ExtensionHostClient
-
+export interface Controller extends Unsubscribable {
     /**
      * Global notification messages that should be displayed to the user, from the following sources:
      *
      * - window/showMessage notifications from extensions
      * - Errors thrown or returned in command invocation
      */
-    public readonly notifications = new Subject<Notification>()
+    readonly notifications: Observable<Notification>
+
+    registries: Registries
 
     /**
      * Executes the command (registered in the CommandRegistry) specified in params. If an error is thrown, the
@@ -32,60 +34,67 @@ export class Controller {
      * {@link sourcegraph:CommandRegistry#executeCommand} directly (to ensure errors are
      * emitted as notifications).
      */
-    public executeCommand(params: ExecuteCommandParams): Promise<any> {
-        return this.registries.commands.executeCommand(params).catch(err => {
-            this.notifications.next({ message: err, type: MessageType.Error, source: params.command })
-            return Promise.reject(err)
-        })
-    }
+    executeCommand(params: ExecuteCommandParams): Promise<any>
+
+    /**
+     * Frees all resources associated with this client.
+     */
+    unsubscribe(): void
 }
 
 /**
- * React props or state containing the controller. There should be only a single controller for the whole
+ * React props or state containing the client. There should be only a single client for the whole
  * application.
  */
 export interface ExtensionsControllerProps {
     /**
-     * The controller, which is used to communicate with the extensions and manages extensions based on the
+     * The client, which is used to communicate with the extensions and manages extensions based on the
      * environment.
      */
     extensionsController: Controller
 }
 
 /**
+ * TODO!(sqs): clean this up
+ *
  * Creates the controller, which handles all communication between the client application and
  * extensions.
  *
- * There should only be a single controller for the entire client application. The controller's
- * environment represents all of the client application state that the controller needs to know.
+ * There should only be a single client for the entire client application. The client's
+ * environment represents all of the client application state that the client needs to know.
  *
  * It receives state updates via calls to the setEnvironment method. It provides functionality and
  * results via its registries and the showMessages, etc., observables.
+ *
+ * TODO!(sqs): move environment out of here
  */
-export function createController(context: PlatformContext): Controller {
-    const controller: Controller = new Controller({
-        connectToExtensionHost: () =>
-            context.createExtensionHost().pipe(
-                switchMap(async messageTransports => {
-                    const connection = createConnection(messageTransports)
-                    connection.listen()
+export function createController(context: PlatformContext, environment: BehaviorSubject<Environment>): Controller {
+    const subscriptions = new Subscription()
+    const registries = new Registries(environment)
+    const extensionHostConnection = context.createExtensionHost().pipe(
+        switchMap(async messageTransports => {
+            const connection = createConnection(messageTransports)
+            connection.listen()
 
-                    const initData: InitData = {
-                        sourcegraphURL: context.sourcegraphURL,
-                        clientApplication: context.clientApplication,
-                    }
-                    await connection.sendRequest('initialize', [initData])
-                    return connection
-                })
-            ),
-    })
+            const initData: InitData = {
+                sourcegraphURL: context.sourcegraphURL,
+                clientApplication: context.clientApplication,
+            }
+            await connection.sendRequest('initialize', [initData])
+            return connection
+        })
+    )
+    const client = createExtensionHostClient(environment, registries, extensionHostConnection)
+    subscriptions.add(client)
+
+    const notifications = new Subject<Notification>()
 
     // TODO!(sqs): reintroduce
     //
     // Apply trace settings.
     //
     // HACK(sqs): This is inefficient and doesn't unsubscribe itself.
-    // controller.clientEntries.subscribe(entries => {
+    // client.clientEntries.subscribe(entries => {
     //     const traceEnabled = localStorage.getItem(ExtensionStatus.TRACE_STORAGE_KEY) !== null
     //     for (const e of entries) {
     //         e.connection
@@ -94,46 +103,54 @@ export function createController(context: PlatformContext): Controller {
     //     }
     // })
 
-    registerBuiltinClientCommands(context, controller)
-    registerExtensionContributions(controller)
+    subscriptions.add(registerBuiltinClientCommands(context, registries.commands))
+    subscriptions.add(registerExtensionContributions(registries.contribution, environment))
 
     // Show messages (that don't need user input) as global notifications.
-    controller.showMessages.subscribe(({ message, type }) => controller.notifications.next({ message, type }))
+    subscriptions.add(client.showMessages.subscribe(({ message, type }) => notifications.next({ message, type })))
 
     function messageFromExtension(message: string): string {
         return `From extension:\n\n${message}`
     }
-    controller.showMessageRequests.subscribe(({ message, actions, resolve }) => {
-        if (!actions || actions.length === 0) {
-            alert(messageFromExtension(message))
-            resolve(null)
-            return
-        }
-        const value = prompt(
-            messageFromExtension(
-                `${message}\n\nValid responses: ${actions.map(({ title }) => JSON.stringify(title)).join(', ')}`
-            ),
-            actions[0].title
-        )
-        resolve(actions.find(a => a.title === value) || null)
-    })
-    controller.showInputs.subscribe(({ message, defaultValue, resolve }) =>
-        resolve(prompt(messageFromExtension(message), defaultValue))
+    subscriptions.add(
+        client.showMessageRequests.subscribe(({ message, actions, resolve }) => {
+            if (!actions || actions.length === 0) {
+                alert(messageFromExtension(message))
+                resolve(null)
+                return
+            }
+            const value = prompt(
+                messageFromExtension(
+                    `${message}\n\nValid responses: ${actions.map(({ title }) => JSON.stringify(title)).join(', ')}`
+                ),
+                actions[0].title
+            )
+            resolve(actions.find(a => a.title === value) || null)
+        })
     )
-    controller.configurationUpdates
-        .pipe(
-            mergeMap(params => {
-                const update = updateConfiguration(context, params)
-                params.resolve(update)
-                return from(update)
-            })
+    subscriptions.add(
+        client.showInputs.subscribe(({ message, defaultValue, resolve }) =>
+            resolve(prompt(messageFromExtension(message), defaultValue))
         )
-        .subscribe(undefined, err => console.error(err))
+    )
+    subscriptions.add(
+        client.configurationUpdates
+            .pipe(
+                mergeMap(params => {
+                    const update = updateConfiguration(context, params)
+                    params.resolve(update)
+                    return from(update)
+                })
+            )
+            .subscribe(undefined, err => console.error(err))
+    )
 
     // Print window/logMessage log messages to the browser devtools console.
-    controller.logMessages.subscribe(({ message }) => {
-        log('info', 'EXT', message)
-    })
+    subscriptions.add(
+        client.logMessages.subscribe(({ message }) => {
+            log('info', 'EXT', message)
+        })
+    )
 
     // Debug helpers.
     const DEBUG = true
@@ -141,27 +158,34 @@ export function createController(context: PlatformContext): Controller {
         // Debug helper: log environment changes.
         const LOG_ENVIRONMENT = false
         if (LOG_ENVIRONMENT) {
-            controller.environment.subscribe(environment => log('info', 'env', environment))
+            subscriptions.add(environment.subscribe(environment => log('info', 'env', environment)))
         }
 
-        // Debug helpers: e.g., just run `sx` in devtools to get a reference to this controller. (If multiple
+        // Debug helpers: e.g., just run `sx` in devtools to get a reference to this client. (If multiple
         // controllers are created, this points to the last one created.)
-        window.sx = controller
+        ;(window as any).sx = client
         // This value is synchronously available because observable has an underlying
         // BehaviorSubject source.
-        controller.environment.subscribe(v => (window.sxenv = v))
+        subscriptions.add(environment.subscribe(v => ((window as any).sxenv = v)))
     }
 
-    return controller
+    return {
+        notifications,
+        registries,
+        executeCommand: params =>
+            registries.commands.executeCommand(params).catch(err => {
+                notifications.next({ message: err, type: MessageType.Error, source: params.command })
+                return Promise.reject(err)
+            }),
+        unsubscribe: () => subscriptions.unsubscribe(),
+    }
 }
 
-/**
- * Registers the builtin client commands that are required by Sourcegraph extensions. See
- * {@link module:sourcegraph.module/protocol/contribution.ActionContribution#command} for
- * documentation.
- */
-function registerExtensionContributions(controller: Controller): Unsubscribable {
-    const contributions = controller.environment.pipe(
+function registerExtensionContributions(
+    contributionRegistry: ContributionRegistry,
+    environment: Observable<Environment>
+): Unsubscribable {
+    const contributions = environment.pipe(
         map(({ extensions }) => extensions),
         filter((extensions): extensions is ConfiguredExtension[] => !!extensions),
         map(extensions =>
@@ -172,7 +196,7 @@ function registerExtensionContributions(controller: Controller): Unsubscribable 
                 .filter((contributions): contributions is Contributions => !!contributions)
         )
     )
-    return controller.registries.contribution.registerContributions({
+    return contributionRegistry.registerContributions({
         contributions,
     })
 }

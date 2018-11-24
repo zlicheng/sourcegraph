@@ -1,7 +1,7 @@
 import { isArray } from 'lodash-es'
 import { from, Subscription, throwError, Unsubscribable } from 'rxjs'
 import { switchMap, take } from 'rxjs/operators'
-import { ExtensionHostClient } from '../api/client/client'
+import { CommandRegistry } from '../api/client/providers/command'
 import { ActionContributionClientCommandUpdateConfiguration, ConfigurationUpdateParams } from '../api/protocol'
 import { PlatformContext } from '../platform/context'
 import { isErrorLike } from '../util/errors'
@@ -13,12 +13,12 @@ import { isErrorLike } from '../util/errors'
  */
 export function registerBuiltinClientCommands(
     context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings' | 'queryGraphQL' | 'queryLSP'>,
-    client: ExtensionHostClient
+    commandRegistry: CommandRegistry
 ): Unsubscribable {
     const subscription = new Subscription()
 
     subscription.add(
-        client.registries.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'open',
             run: (url: string) => {
                 // The `open` client command is usually implemented by ActionItem rendering the action with the
@@ -34,7 +34,7 @@ export function registerBuiltinClientCommands(
     )
 
     subscription.add(
-        client.registries.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'openPanel',
             run: (viewID: string) => {
                 // As above for `open`, the `openPanel` client command is usually implemented by an HTML <a>
@@ -46,7 +46,7 @@ export function registerBuiltinClientCommands(
     )
 
     subscription.add(
-        client.registries.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'updateConfiguration',
             run: (...anyArgs: any[]): Promise<void> => {
                 const args = anyArgs as ActionContributionClientCommandUpdateConfiguration['commandArguments']
@@ -60,7 +60,7 @@ export function registerBuiltinClientCommands(
      * with the privileges of the current user.
      */
     subscription.add(
-        client.registries.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'queryGraphQL',
             run: (query: string, variables: { [name: string]: any }): Promise<any> =>
                 // 🚨 SECURITY: The request might contain private info (such as
@@ -77,7 +77,7 @@ export function registerBuiltinClientCommands(
      * performed with the privileges of the current user.
      */
     subscription.add(
-        client.registries.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'queryLSP',
             run: requests => from(context.queryLSP(requests)).toPromise(),
         })

@@ -22,7 +22,7 @@ import { ClientRoots } from './api/roots'
 import { Search } from './api/search'
 import { ClientViews } from './api/views'
 import { ClientWindows } from './api/windows'
-import { ClientHelpers } from './client'
+import { ExtensionHostClientObservables } from './client'
 import { applyContextUpdate } from './context/context'
 import { Environment } from './environment'
 import { Registries } from './registries'
@@ -59,7 +59,7 @@ export function createExtensionHostClientConnection(
     connection: Connection,
     environment: BehaviorSubject<Environment>,
     registries: Registries,
-    helpers: ClientHelpers
+    observables: ExtensionHostClientObservables
 ): ExtensionHostClientConnection {
     const subscription = new Subscription()
 
@@ -71,7 +71,7 @@ export function createExtensionHostClientConnection(
                 distinctUntilChanged()
             ),
             (params: ConfigurationUpdateParams) =>
-                new Promise<void>(resolve => helpers.configurationUpdates.next({ ...params, resolve }))
+                new Promise<void>(resolve => observables.configurationUpdates.next({ ...params, resolve }))
         )
     )
     subscription.add(
@@ -121,14 +121,14 @@ export function createExtensionHostClientConnection(
                 map(({ visibleTextDocuments }) => visibleTextDocuments),
                 distinctUntilChanged()
             ),
-            (params: ShowMessageParams) => helpers.showMessages.next({ ...params }),
+            (params: ShowMessageParams) => observables.showMessages.next({ ...params }),
             (params: ShowMessageRequestParams) =>
                 new Promise<MessageActionItem | null>(resolve => {
-                    helpers.showMessageRequests.next({ ...params, resolve })
+                    observables.showMessageRequests.next({ ...params, resolve })
                 }),
             (params: ShowInputParams) =>
                 new Promise<string | null>(resolve => {
-                    helpers.showInputs.next({ ...params, resolve })
+                    observables.showInputs.next({ ...params, resolve })
                 })
         )
     )

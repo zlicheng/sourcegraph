@@ -30,6 +30,10 @@ export class ClientExtensions {
             extensions
                 .pipe(
                     map(extensions => (extensions === null || extensions.length === 0 ? null : extensions)),
+
+                    // TODO!(sqs): hack until add back environmentFilter
+                    map(extensions => (extensions || []).filter(x => x.id.includes('hello-world-hover'))),
+
                     startWith(null),
                     distinctUntilChanged(),
                     bufferCount(2)

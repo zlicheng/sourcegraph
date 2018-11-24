@@ -4,9 +4,9 @@ import ServerIcon from 'mdi-react/ServerIcon'
 import * as React from 'react'
 import { Route } from 'react-router'
 import { BrowserRouter } from 'react-router-dom'
-import { combineLatest, from, Subscription } from 'rxjs'
+import { BehaviorSubject, combineLatest, from, Subscription } from 'rxjs'
 import { startWith } from 'rxjs/operators'
-import { EMPTY_ENVIRONMENT as EXTENSIONS_EMPTY_ENVIRONMENT } from '../../shared/src/api/client/environment'
+import { EMPTY_ENVIRONMENT, Environment } from '../../shared/src/api/client/environment'
 import { TextDocumentItem } from '../../shared/src/api/client/types/textDocument'
 import { WorkspaceRoot } from '../../shared/src/api/protocol/plainTypes'
 import {
@@ -117,17 +117,19 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
             settingsCascade: { subjects: null, final: null },
             platformContext,
             extensionsEnvironment: {
-                ...EXTENSIONS_EMPTY_ENVIRONMENT,
+                ...this.extensionsEnvironment.value,
                 context: {
+                    // TODO!(sqs): still necessary?
                     'clientApplication.isSourcegraph': true,
                 },
             },
-            extensionsController: createExtensionsController(platformContext),
+            extensionsController: createExtensionsController(platformContext, this.extensionsEnvironment),
             viewerSubject: SITE_SUBJECT_NO_ADMIN,
             isMainPage: false,
         }
     }
 
+    private extensionsEnvironment = new BehaviorSubject<Environment>(EMPTY_ENVIRONMENT)
     private subscriptions = new Subscription()
 
     public componentDidMount(): void {
@@ -162,6 +164,10 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
                     }
                 })
             })
+        )
+
+        this.subscriptions.add(
+            this.extensionsEnvironment.subscribe(value => this.setState({ extensionsEnvironment: value }))
         )
 
         this.subscriptions.add(this.state.extensionsController)
@@ -294,55 +300,35 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
     }
 
     private onSettingsCascadeChange(settingsCascade: SettingsCascadeOrError): void {
-        this.setState(
-            prevState => {
-                const update: Pick<SourcegraphWebAppState, 'settingsCascade' | 'extensionsEnvironment'> = {
-                    settingsCascade,
-                    extensionsEnvironment: prevState.extensionsEnvironment,
-                }
-                if (isSettingsValid(settingsCascade)) {
-                    // Only update Sourcegraph extensions environment configuration if the configuration was
-                    // successfully parsed.
-                    update.extensionsEnvironment = {
-                        ...prevState.extensionsEnvironment,
-                        configuration: {
-                            subjects: settingsCascade.subjects.filter(
-                                (subject): subject is ConfiguredSubject =>
-                                    subject.settings !== null && !isErrorLike(subject.settings)
-                            ),
-                            final: settingsCascade.final,
-                        },
-                    }
-                }
-                return update
-            },
-            () => this.state.extensionsController.setEnvironment(this.state.extensionsEnvironment)
-        )
+        this.setState({ settingsCascade })
+
+        if (isSettingsValid(settingsCascade)) {
+            // Only update Sourcegraph extensions environment configuration if the configuration was
+            // successfully parsed.
+            //
+            // TODO!(sqs): does that make sense?
+            this.extensionsEnvironment.next({
+                ...this.extensionsEnvironment.value,
+                configuration: {
+                    subjects: settingsCascade.subjects.filter(
+                        (subject): subject is ConfiguredSubject =>
+                            subject.settings !== null && !isErrorLike(subject.settings)
+                    ),
+                    final: settingsCascade.final,
+                },
+            })
+        }
     }
 
     private extensionsOnRootsChange = (roots: WorkspaceRoot[] | null): void => {
-        this.setState(
-            prevState => ({ extensionsEnvironment: { ...prevState.extensionsEnvironment, roots } }),
-            () => this.state.extensionsController.setEnvironment(this.state.extensionsEnvironment)
-        )
+        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, roots })
     }
 
     private onViewerConfiguredExtensionsChange(viewerConfiguredExtensions: ConfiguredExtension[]): void {
-        this.setState(
-            prevState => ({
-                extensionsEnvironment: {
-                    ...prevState.extensionsEnvironment,
-                    extensions: viewerConfiguredExtensions,
-                },
-            }),
-            () => this.state.extensionsController.setEnvironment(this.state.extensionsEnvironment)
-        )
+        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, extensions: viewerConfiguredExtensions })
     }
 
     private extensionsOnVisibleTextDocumentsChange = (visibleTextDocuments: TextDocumentItem[] | null): void => {
-        this.setState(
-            prevState => ({ extensionsEnvironment: { ...prevState.extensionsEnvironment, visibleTextDocuments } }),
-            () => this.state.extensionsController.setEnvironment(this.state.extensionsEnvironment)
-        )
+        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, visibleTextDocuments })
     }
 }
