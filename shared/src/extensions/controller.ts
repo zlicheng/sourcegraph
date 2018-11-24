@@ -1,5 +1,5 @@
 import { from, Subject, Unsubscribable } from 'rxjs'
-import { filter, map, mergeMap, switchMap, tap } from 'rxjs/operators'
+import { filter, map, mergeMap, switchMap } from 'rxjs/operators'
 import { Controller as BaseController } from '../api/client/controller'
 import { Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
@@ -104,46 +104,6 @@ declare global {
     }
 }
 
-// function foo(
-//     extension: Pick<ConfiguredExtension, 'id' | 'manifest'>,
-//     settingsCascade: SettingsCascade<any>
-// ): Promise<MessageTransports> {
-//     if (!extension.manifest) {
-//         throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no manifest found`)
-//     }
-//     if (isErrorLike(extension.manifest)) {
-//         throw new Error(
-//             `unable to run extension ${JSON.stringify(extension.id)}: invalid manifest: ${extension.manifest.message}`
-//         )
-//     }
-//
-//     if (extension.manifest.url) {
-//         try {
-//             // TODO!(sqs): move to 1 extension host, many extensions paradigm
-//             const worker = new ExtensionHostWorker()
-//             const initData: InitData = {
-//                 sourcegraphURL: window.context.externalURL,
-//                 clientApplication: 'sourcegraph',
-//                 settingsCascade,
-//             }
-//             worker.postMessage(initData)
-//             const transports = createWebWorkerMessageTransports(worker)
-//
-//             ////////////
-//             const connection = createConnection(transports)
-//             connection.listen()
-//             await connection.sendRequest('activateExtension', [extension.manifest.url])
-//             ////////////
-//
-//             return transports
-//         } catch (err) {
-//             console.error(err)
-//         }
-//         throw new Error('failed to initialize extension host')
-//     }
-//     throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
-// }
-
 /**
  * Creates the controller, which handles all communication between the client application and
  * extensions.
@@ -157,7 +117,7 @@ declare global {
 export function createController(context: PlatformContext): Controller {
     const controller: Controller = new Controller({
         connectToExtensionHost: () =>
-            context.createExecutionContext('TODO!(sqs): this is ignored').pipe(
+            context.createExtensionHost().pipe(
                 switchMap(async messageTransports => {
                     const connection = createConnection(messageTransports)
                     connection.listen()

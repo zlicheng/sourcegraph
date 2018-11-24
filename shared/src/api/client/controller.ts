@@ -1,5 +1,6 @@
 import { BehaviorSubject, Observable, of, Subject, Subscription, Unsubscribable } from 'rxjs'
 import { finalize, map } from 'rxjs/operators'
+import { isErrorLike } from '../../util/errors'
 import {
     ConfigurationUpdateParams,
     LogMessageParams,
@@ -108,9 +109,21 @@ export class Controller<X extends Extension, C extends SettingsCascade>
     public readonly showInputs = new Subject<ShowInputRequest>()
     public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
 
-    // TODO!(sqs): extract, remove any cast
     public getScriptURLForExtension(extension: X): string {
-        return (extension as any).manifest.url // TODO!(sqs)
+        if (!extension.manifest) {
+            throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no manifest found`)
+        }
+        if (isErrorLike(extension.manifest)) {
+            throw new Error(
+                `unable to run extension ${JSON.stringify(extension.id)}: invalid manifest: ${
+                    extension.manifest.message
+                }`
+            )
+        }
+        if (!extension.manifest.url) {
+            throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
+        }
+        return extension.manifest.url
     }
 
     constructor(private options: ControllerOptions<X, C>) {

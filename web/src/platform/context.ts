@@ -1,7 +1,7 @@
 import { isEqual } from 'lodash'
 import { Observable } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
-import ExtensionHostWorker from 'worker-loader!./extensionHost.worker'
+import ExtensionHostWorker from 'worker-loader!../../../shared/src/api/extension/main.worker'
 import { createWebWorkerMessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/transports/webWorker'
 import { gql } from '../../../shared/src/graphql/graphql'
 import { PlatformContext } from '../../../shared/src/platform/context'
@@ -62,7 +62,7 @@ export function createPlatformContext(): PlatformContext {
             ),
         queryLSP: requests => sendLSPHTTPRequests(requests),
         forceUpdateTooltip: () => Tooltip.forceUpdate(),
-        createExecutionContext: () => {
+        createExtensionHost: () => {
             // TODO!(sqs): bundleURL is ignored
             const worker = new ExtensionHostWorker()
             const messageTransports = createWebWorkerMessageTransports(worker)

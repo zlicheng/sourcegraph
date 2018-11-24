@@ -4,12 +4,10 @@ import { startExtensionHost } from './extensionHost'
 /**
  * The entrypoint for the JavaScript context that runs the extension host (and all extensions).
  *
- * To initialize the worker and start the extension host, the parent sends it an {@link InitData}
- * message.
+ * To initialize the extension host, the parent sends it an "initialize" message with
+ * {@link InitData}.
  */
-// TODO!(sqs): rename this file to use the "execution context" nomenclature (not "worker" as in "web
-// worker")
-export function extensionHostMain(): void {
+function extensionHostMain(): void {
     try {
         const { unsubscribe } = startExtensionHost(createWebWorkerMessageTransports())
         self.addEventListener('unload', () => unsubscribe())
@@ -18,3 +16,5 @@ export function extensionHostMain(): void {
         self.close()
     }
 }
+
+extensionHostMain()

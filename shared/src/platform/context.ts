@@ -56,16 +56,13 @@ export interface PlatformContext {
 
     /**
      * Spawns a new JavaScript execution context (such as a Web Worker or browser extension
-     * background worker) and opens a communication channel to it. It is called exactly once, to
-     * start the extension host.
+     * background worker) with the extension host and opens a communication channel to it. It is
+     * called exactly once, to start the extension host.
      *
-     * @param entrypointURL The URL to a JavaScript source file that is executed in the newly
-     * created execution context.
-     * @param signal An optional abort signal to terminate the execution context.
      * @returns An observable that emits at most once with the message transports for communicating
      * with the execution context (using, e.g., postMessage/onmessage) when it is ready.
      */
-    createExecutionContext(entrypointURL: string): Observable<MessageTransports>
+    createExtensionHost(): Observable<MessageTransports>
 
     /**
      * The URL to the Sourcegraph site that the user's session is associated with. This refers to
