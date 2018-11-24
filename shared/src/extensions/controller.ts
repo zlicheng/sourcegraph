@@ -1,6 +1,6 @@
 import { from, Subject, Unsubscribable } from 'rxjs'
 import { filter, map, mergeMap, switchMap } from 'rxjs/operators'
-import { Controller as BaseController } from '../api/client/controller'
+import { Client } from '../api/client/client'
 import { ExecuteCommandParams } from '../api/client/providers/command'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
@@ -16,7 +16,8 @@ import { ConfiguredExtension } from './extension'
 /**
  * Extends the {@link BaseController} class to add functionality that is useful to this package's consumers.
  */
-export class Controller extends BaseController<ConfiguredExtension, SettingsCascade> {
+export class Controller {
+    private client: Client<ConfiguredExtension, SettingsCascade>
     /**
      * Global notification messages that should be displayed to the user, from the following sources:
      *

@@ -4,6 +4,11 @@
     "typeRoots": ["../node_modules/@types", "src/types"],
     "jsx": "react"
   },
-  "include": ["**/*", "../shared/src/api/extension/main.worker.ts", "../shared/src/api/client/client.ts"],
+  "include": [, "../shared/src/api/client/client.test.ts"
+    "**/*",
+    "../shared/src/api/extension/main.worker.ts",
+    "../shared/src/api/client/connection.ts",
+    "../shared/src/api/client/client.ts"
+  ],
   "exclude": ["../node_modules"]
 }

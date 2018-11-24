@@ -1,6 +1,6 @@
 import * as assert from 'assert'
 import { map } from 'rxjs/operators'
-import { ConfigurationUpdate } from '../client/controller'
+import { ConfigurationUpdate } from '../client/client'
 import { assertToJSON } from '../extension/types/common.test'
 import { collectSubscribableValues, integrationTestContext } from './helpers.test'
 

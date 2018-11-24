@@ -1,7 +1,7 @@
 import { isArray } from 'lodash-es'
 import { from, Subscription, throwError, Unsubscribable } from 'rxjs'
 import { switchMap, take } from 'rxjs/operators'
-import { Controller } from '../api/client/controller'
+import { Client } from '../api/client/client'
 import { Extension } from '../api/client/extension'
 import { ActionContributionClientCommandUpdateConfiguration, ConfigurationUpdateParams } from '../api/protocol'
 import { PlatformContext } from '../platform/context'
@@ -15,7 +15,7 @@ import { isErrorLike } from '../util/errors'
  */
 export function registerBuiltinClientCommands<X extends Extension>(
     context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings' | 'queryGraphQL' | 'queryLSP'>,
-    controller: Controller<X, SettingsCascade>
+    controller: Client<X, SettingsCascade>
 ): Unsubscribable {
     const subscription = new Subscription()
 

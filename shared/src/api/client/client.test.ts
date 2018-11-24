@@ -1,10 +1,10 @@
 import * as assert from 'assert'
 import { Observable } from 'rxjs'
 import { first } from 'rxjs/operators'
-import { Controller, ActivatedExtension, ExtensionConnectionKey } from './controller'
+import { ActivatedExtension, Client, ExtensionConnectionKey } from './client'
 import { EMPTY_ENVIRONMENT, Environment } from './environment'
 
-class TestController extends Controller<any, any> {
+class TestClient extends Client<any, any> {
     public get clientEntries(): Observable<ActivatedExtension[]> & { value: ActivatedExtension[] } {
         let value!: ActivatedExtension[]
         super.clientEntries
@@ -15,8 +15,8 @@ class TestController extends Controller<any, any> {
     }
 }
 
-const create = (environment?: Environment): TestController => {
-    const controller = new TestController({
+const create = (environment?: Environment): TestClient => {
+    const controller = new TestClient({
         clientOptions: () => ({
             createMessageTransports: async () => {
                 throw new Error('connection is not used in unit test')

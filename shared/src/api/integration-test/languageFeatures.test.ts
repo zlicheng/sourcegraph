@@ -2,7 +2,7 @@ import * as assert from 'assert'
 import { take } from 'rxjs/operators'
 import * as sourcegraph from 'sourcegraph'
 import { languages as sourcegraphLanguages } from 'sourcegraph'
-import { Controller } from '../client/controller'
+import { Client } from '../client/client'
 import { assertToJSON } from '../extension/types/common.test'
 import { URI } from '../extension/types/uri'
 import { Definition } from '../protocol/plainTypes'
@@ -107,7 +107,7 @@ function testLocationProvider<P>(
     labeledProvider: (label: string) => P,
     labeledProviderResults: (labels: string[]) => any,
     providerWithImpl: (run: (doc: sourcegraph.TextDocument, pos: sourcegraph.Position) => void) => P,
-    getResult: (clientController: Controller<any, any>) => Promise<any>
+    getResult: (clientController: Client<any, any>) => Promise<any>
 ): void {
     describe(`languages.${name}`, () => {
         it('registers and unregisters a single provider', async () => {

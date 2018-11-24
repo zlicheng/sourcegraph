@@ -1,6 +1,6 @@
 import { filter, first } from 'rxjs/operators'
 import * as sourcegraph from 'sourcegraph'
-import { Controller } from '../client/controller'
+import { Client } from '../client/client'
 import { Environment } from '../client/environment'
 import { startExtensionHost } from '../extension/extensionHost'
 import { createMessageTransports } from '../protocol/jsonrpc2/helpers.test'
@@ -20,7 +20,7 @@ const FIXTURE_ENVIRONMENT: Environment = {
 }
 
 interface TestContext {
-    clientController: Controller<any, any>
+    clientController: Client<any, any>
     extensionHost: typeof sourcegraph
 }
 
@@ -37,7 +37,7 @@ export async function integrationTestContext(): Promise<
 > {
     const [clientTransports, serverTransports] = createMessageTransports()
 
-    const clientController = new Controller({
+    const clientController = new Client({
         clientOptions: () => ({ createMessageTransports: () => clientTransports }),
     })
     clientController.setEnvironment(FIXTURE_ENVIRONMENT)

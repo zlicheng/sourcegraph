@@ -1,9 +1,8 @@
-import { BehaviorSubject, from, Subscription } from 'rxjs'
-import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
-import { ContextValues } from 'sourcegraph'
-import { getScriptURLFromExtensionManifest } from '../../extensions/extension'
+import { BehaviorSubject, Observable, of, Subject, Subscription, Unsubscribable } from 'rxjs'
+import { finalize, map } from 'rxjs/operators'
 import {
     ConfigurationUpdateParams,
+    LogMessageParams,
     MessageActionItem,
     SettingsCascade,
     ShowInputParams,
@@ -11,166 +10,100 @@ import {
     ShowMessageRequestParams,
 } from '../protocol'
 import { Connection } from '../protocol/jsonrpc2/connection'
-import { Tracer } from '../protocol/jsonrpc2/trace'
-import { ClientCodeEditor } from './api/codeEditor'
-import { ClientCommands } from './api/commands'
-import { ClientConfiguration } from './api/configuration'
-import { ClientContext } from './api/context'
-import { ClientDocuments } from './api/documents'
-import { ClientExtensions } from './api/extensions'
-import { ClientLanguageFeatures } from './api/languageFeatures'
-import { ClientRoots } from './api/roots'
-import { Search } from './api/search'
-import { ClientViews } from './api/views'
-import { ClientWindows } from './api/windows'
-import { applyContextUpdate } from './context/context'
-import { ControllerHelpers } from './controller'
+import { createExtensionHostClientConnection } from './connection'
 import { Environment } from './environment'
 import { Extension } from './extension'
 import { Registries } from './registries'
 
-interface ExtensionHostClient {
-    /**
-     * Sets or unsets the tracer to use for logging all of this client's messages to/from the
-     * extension host.
-     */
-    setTracer(tracer: Tracer | null): void
+interface PromiseCallback<T> {
+    resolve: (p: T | Promise<T>) => void
+}
 
+type ShowMessageRequest = ShowMessageRequestParams & PromiseCallback<MessageActionItem | null>
+
+type ShowInputRequest = ShowInputParams & PromiseCallback<string | null>
+
+export type ConfigurationUpdate = ConfigurationUpdateParams & PromiseCallback<void>
+
+/**
+ * Options for creating the client.
+ *
+ * @template X extension type
+ * @template C settings cascade type
+ */
+export interface ClientOptions {
     /**
-     * Closes the connection to and terminates the extension host.
+     * @returns An observable that emits at most once (TODO!(sqs): or multiple times? to handle connection drops/reestablishments).
      */
-    unsubscribe(): void
+    connectToExtensionHost(): Observable<Connection>
+}
+
+export interface ClientHelpers {
+    // TODO!(sqs): make not subjects but just observables
+
+    /** Log messages from extensions. */
+    readonly logMessages: Subject<LogMessageParams>
+
+    /** Messages from extensions intended for display to the user. */
+    readonly showMessages: Subject<ShowMessageParams>
+
+    /** Messages from extensions requesting the user to select an action. */
+    readonly showMessageRequests: Subject<ShowMessageRequest>
+
+    /** Messages from extensions requesting text input from the user. */
+    readonly showInputs: Subject<ShowInputRequest>
+
+    /** Configuration updates from extensions. */
+    readonly configurationUpdates: Subject<ConfigurationUpdate>
 }
 
 /**
- * An activated extension.
+ * The client. TODO!(sqs), make this for all shared code and the internal "extension" API, not
+ * just cross-context extensions.
+ *
+ * @template X extension type
+ * @template C settings cascade type
  */
-export interface ActivatedExtension {
-    /**
-     * The extension's extension ID (which uniquely identifies it among all activated extensions).
-     */
-    id: string
+export class Client<X extends Extension, C extends SettingsCascade> implements ClientHelpers, Unsubscribable {
+    /** An observable that emits whenever the set of clients managed by this client changes. */
+    // TODO!(sqs): implement
+    public get clientEntries(): Observable<any[]> {
+        return of([])
+    }
 
-    /**
-     * Deactivate the extension (by calling its "deactivate" function, if any).
-     */
-    deactivate(): void | Promise<void>
-}
+    private subscriptions = new Subscription()
 
-export function createExtensionHostClient<X extends Extension, C extends SettingsCascade>(
-    connection: Connection,
-    environment: BehaviorSubject<Environment<X, C>>,
-    registries: Registries<X, C>,
-    helpers: ControllerHelpers<X>
-): ExtensionHostClient {
-    const subscription = new Subscription()
+    public readonly logMessages = new Subject<LogMessageParams>()
+    public readonly showMessages = new Subject<ShowMessageParams>()
+    public readonly showMessageRequests = new Subject<ShowMessageRequest>()
+    public readonly showInputs = new Subject<ShowInputRequest>()
+    public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
 
-    subscription.add(
-        new ClientConfiguration(
-            connection,
-            environment.pipe(
-                map(({ configuration }) => configuration),
-                distinctUntilChanged()
-            ),
-            (params: ConfigurationUpdateParams) =>
-                new Promise<void>(resolve => helpers.configurationUpdates.next({ ...params, resolve }))
-        )
-    )
-    subscription.add(
-        new ClientContext(connection, (updates: ContextValues) =>
-            // Set environment manually, not via Controller#setEnvironment, to avoid recursive setEnvironment calls
-            // (when this callback is called during setEnvironment's teardown of unused clients).
-            environment.next({
-                ...environment.value,
-                context: applyContextUpdate(environment.value.context, updates),
-            })
-        )
-    )
-    subscription.add(
-        new ClientExtensions(
-            connection,
-            environment.pipe(
-                map(({ extensions }) => extensions),
-                distinctUntilChanged(),
-                // TODO!(sqs): memoize getScriptURLForExtension
-                /** Run {@link ControllerHelpers.getScriptURLForExtension} last because it is nondeterministic. */
-                switchMap(
-                    extensions =>
-                        extensions !== null && extensions.length > 0
-                            ? from(
-                                  Promise.all(
-                                      extensions.map(x =>
-                                          Promise.resolve({
-                                              id: x.id,
-                                              // TODO!(sqs): log errors but do not throw here
-                                              //
-                                              // TODO!(sqs): also apply
-                                              // PlatformContext.getScriptURLForExtension here for browser ext
-                                              scriptURL: getScriptURLFromExtensionManifest(x),
-                                          })
-                                      )
-                                  )
-                              )
-                            : [null]
+    constructor(
+        // TODO!(sqs): make it possible to just use an observable of environment, not
+        // behaviorsubject, to simplify data flow
+        environment: BehaviorSubject<Environment<X, C>>,
+        registries: Registries<X, C>,
+        extensionHostConnection: Observable<Connection>
+    ) {
+        this.subscriptions.add(
+            extensionHostConnection
+                .pipe(
+                    map(connection => {
+                        const client = createExtensionHostClientConnection<X, C>(
+                            connection,
+                            environment,
+                            registries,
+                            this
+                        )
+                        return of(client).pipe(finalize(() => client.unsubscribe()))
+                    })
                 )
-            )
+                .subscribe()
         )
-    )
-    subscription.add(
-        new ClientWindows(
-            connection,
-            environment.pipe(
-                map(({ visibleTextDocuments }) => visibleTextDocuments),
-                distinctUntilChanged()
-            ),
-            (params: ShowMessageParams) => helpers.showMessages.next({ ...params }),
-            (params: ShowMessageRequestParams) =>
-                new Promise<MessageActionItem | null>(resolve => {
-                    helpers.showMessageRequests.next({ ...params, resolve })
-                }),
-            (params: ShowInputParams) =>
-                new Promise<string | null>(resolve => {
-                    helpers.showInputs.next({ ...params, resolve })
-                })
-        )
-    )
-    subscription.add(new ClientViews(connection, registries.views))
-    subscription.add(new ClientCodeEditor(connection, registries.textDocumentDecoration))
-    subscription.add(
-        new ClientDocuments(
-            connection,
-            environment.pipe(
-                map(({ visibleTextDocuments }) => visibleTextDocuments),
-                distinctUntilChanged()
-            )
-        )
-    )
-    subscription.add(
-        new ClientLanguageFeatures(
-            connection,
-            registries.textDocumentHover,
-            registries.textDocumentDefinition,
-            registries.textDocumentTypeDefinition,
-            registries.textDocumentImplementation,
-            registries.textDocumentReferences
-        )
-    )
-    subscription.add(new Search(connection, registries.queryTransformer))
-    subscription.add(new ClientCommands(connection, registries.commands))
-    subscription.add(
-        new ClientRoots(
-            connection,
-            environment.pipe(
-                map(({ roots }) => roots),
-                distinctUntilChanged()
-            )
-        )
-    )
+    }
 
-    return {
-        setTracer: tracer => {
-            connection.trace(tracer)
-        },
-        unsubscribe: () => subscription.unsubscribe(),
+    public unsubscribe(): void {
+        this.subscriptions.unsubscribe()
     }
 }
