@@ -17,7 +17,7 @@ const FIXTURE_ENVIRONMENT: Environment = {
             text: 't',
         },
     ],
-    extensions: [{ id: 'x', manifest: null }],
+    extensions: [{ id: 'x', manifest: null, rawManifest: null }],
     configuration: { final: { a: 1 } },
     context: {},
 }

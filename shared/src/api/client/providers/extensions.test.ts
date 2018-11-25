@@ -1,12 +1,12 @@
 import assert from 'assert'
 import { TestScheduler } from 'rxjs/testing'
+import { ConfiguredExtension } from '../../../extensions/extension'
 import { Environment } from '../environment'
-import { Extension } from '../extension'
 import { ExecutableExtension, ExtensionRegistry } from './extensions'
 
 const scheduler = () => new TestScheduler((a, b) => assert.deepStrictEqual(a, b))
 
-function noopExtensionActivationFilter(environment: Pick<Environment, 'extensions'>): Extension[] {
+function noopExtensionActivationFilter(environment: Pick<Environment, 'extensions'>): ConfiguredExtension[] {
     return environment.extensions || []
 }
 
@@ -32,12 +32,12 @@ describe('activeExtensions', () => {
                     cold<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>('-a-b-|', {
                         a: {
                             configuration: { final: { extensions: { x: true } } },
-                            extensions: [{ id: 'x', manifest: { url: 'u' } }],
+                            extensions: [{ id: 'x', manifest: { url: 'u', activationEvents: [] }, rawManifest: null }],
                             visibleTextDocuments: [],
                         },
                         b: {
                             configuration: { final: { extensions: {} } },
-                            extensions: [{ id: 'x', manifest: { url: 'u' } }],
+                            extensions: [{ id: 'x', manifest: { url: 'u', activationEvents: [] }, rawManifest: null }],
                             visibleTextDocuments: [],
                         },
                     }),

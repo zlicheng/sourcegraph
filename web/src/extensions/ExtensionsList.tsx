@@ -14,7 +14,7 @@ import {
     withLatestFrom,
 } from 'rxjs/operators'
 import { ConfiguredRegistryExtension, toConfiguredRegistryExtension } from '../../../shared/src/extensions/extension'
-import { viewerConfiguredRegistryExtensions } from '../../../shared/src/extensions/helpers'
+import { viewerConfiguredExtensions } from '../../../shared/src/extensions/helpers'
 import { gql } from '../../../shared/src/graphql/graphql'
 import * as GQL from '../../../shared/src/graphql/schema'
 import { PlatformContextProps } from '../../../shared/src/platform/context'
@@ -247,7 +247,7 @@ export class ExtensionsList extends React.PureComponent<Props, State> {
     private onQueryChange: React.FormEventHandler<HTMLInputElement> = e => this.queryChanges.next(e.currentTarget.value)
 
     private queryRegistryExtensions = (args: { query?: string }): Observable<ExtensionsResult> =>
-        viewerConfiguredRegistryExtensions(this.props.platformContext).pipe(
+        viewerConfiguredExtensions(this.props.platformContext).pipe(
             // Avoid refreshing (and changing order) when the user merely interacts with an extension (e.g.,
             // toggling its enablement), to reduce UI jitter.
             take(1),

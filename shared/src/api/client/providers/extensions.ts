@@ -1,14 +1,17 @@
 import { Observable } from 'rxjs'
 import { map, tap } from 'rxjs/operators'
-import { getScriptURLFromExtensionManifest, isExtensionEnabled } from '../../../extensions/extension'
+import {
+    ConfiguredExtension,
+    getScriptURLFromExtensionManifest,
+    isExtensionEnabled,
+} from '../../../extensions/extension'
 import { isErrorLike } from '../../../util/errors'
 import { Environment } from '../environment'
-import { Extension } from '../extension'
 
 /**
  * The information about an extension necessary to execute and activate it.
  */
-export interface ExecutableExtension extends Pick<Extension, 'id'> {
+export interface ExecutableExtension extends Pick<ConfiguredExtension, 'id'> {
     /** The URL to the JavaScript bundle of the extension. */
     scriptURL: string
 }
@@ -70,7 +73,7 @@ export class ExtensionRegistry {
 
 function extensionsWithMatchedActivationEvent(
     environment: Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>
-): Extension[] {
+): ConfiguredExtension[] {
     if (!environment.extensions) {
         return []
     }

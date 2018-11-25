@@ -1,9 +1,7 @@
-import { Extension } from '../api/client/extension'
 import * as GQL from '../graphql/schema'
-import { ExtensionManifest } from '../schema/extension.schema'
 import { Settings } from '../settings/settings'
 import { ErrorLike, isErrorLike } from '../util/errors'
-import { parseJSONCOrError } from '../util/jsonc'
+import { ExtensionManifest, parseExtensionManifestOrError } from './extensionManifest'
 
 /**
  * Describes a configured extension.
@@ -53,7 +51,7 @@ export function toConfiguredRegistryExtension<X extends MinimalRegistryExtension
 ): ConfiguredRegistryExtension<X> {
     return {
         id: extension.extensionID,
-        manifest: extension.manifest ? parseJSONCOrError<ExtensionManifest>(extension.manifest.raw) : null,
+        manifest: extension.manifest ? parseExtensionManifestOrError(extension.manifest.raw) : null,
         rawManifest: (extension && extension.manifest && extension.manifest.raw) || null,
         registryExtension: extension,
     }
@@ -71,9 +69,12 @@ export function isExtensionEnabled(settings: Settings | ErrorLike | null, extens
  * @throws If the script URL can't be determined.
  * @returns The extension's script URL.
  */
-export function getScriptURLFromExtensionManifest(extension: Extension): string {
+export function getScriptURLFromExtensionManifest(extension: ConfiguredExtension): string {
     if (!extension.manifest) {
         throw new Error(`extension ${JSON.stringify(extension.id)}: no manifest found`)
+    }
+    if (isErrorLike(extension.manifest)) {
+        throw new Error(`extension ${JSON.stringify(extension.id)}: invalid manifest: ${extension.manifest.message}`)
     }
     if (!extension.manifest.url) {
         throw new Error(`extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)

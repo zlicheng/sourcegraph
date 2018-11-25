@@ -11,9 +11,9 @@ import { createConnection } from '../api/protocol/jsonrpc2/connection'
 import { registerBuiltinClientCommands, updateConfiguration } from '../commands/commands'
 import { Notification } from '../notifications/notification'
 import { PlatformContext } from '../platform/context'
-import { ExtensionManifest } from '../schema/extension.schema'
 import { isErrorLike } from '../util/errors'
 import { ConfiguredExtension } from './extension'
+import { ExtensionManifest } from './extensionManifest'
 
 export interface Controller extends Unsubscribable {
     /**

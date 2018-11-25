@@ -1,7 +1,7 @@
+import { ConfiguredExtension } from '../../extensions/extension'
 import { SettingsCascade } from '../protocol'
 import { WorkspaceRoot } from '../protocol/plainTypes'
 import { Context, EMPTY_CONTEXT } from './context/context'
-import { Extension } from './extension'
 import { TextDocumentItem } from './types/textDocument'
 
 /**
@@ -10,11 +10,13 @@ import { TextDocumentItem } from './types/textDocument'
  * This models the state of editor-like tools that display documents, allow selections and scrolling
  * in documents, and support extension configuration.
  *
- * // TODO!(sqs): get rid of generic type params?
- * @template X extension type, to support storing additional properties on extensions
+ * @template X the extension type, to support storing additional properties on extensions (e.g., using {@link ConfiguredRegistryExtension})
  * @template C settings cascade type
  */
-export interface Environment<X extends Extension = Extension, C extends SettingsCascade = SettingsCascade> {
+export interface Environment<
+    X extends ConfiguredExtension = ConfiguredExtension,
+    C extends SettingsCascade = SettingsCascade
+> {
     /**
      * The currently open workspace roots (typically a single repository).
      */
