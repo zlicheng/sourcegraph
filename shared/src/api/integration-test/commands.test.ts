@@ -4,8 +4,7 @@ import { integrationTestContext } from './helpers.test'
 describe('Commands (integration)', () => {
     describe('commands.registerCommand', () => {
         it('registers and unregisters a single command', async () => {
-            const { registries, extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { registries, extensionHost } = await integrationTestContext()
 
             // Register the command and call it.
             const unsubscribe = extensionHost.commands.registerCommand('c', () => 'a')
@@ -20,8 +19,7 @@ describe('Commands (integration)', () => {
         })
 
         it('supports multiple commands', async () => {
-            const { registries, extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { registries, extensionHost } = await integrationTestContext()
 
             // Register 2 commands with different results.
             extensionHost.commands.registerCommand('c1', () => 'a1')

@@ -8,8 +8,7 @@ import { collectSubscribableValues, integrationTestContext } from './helpers.tes
 describe('Windows (integration)', () => {
     describe('app.activeWindow', () => {
         it('returns the active window', async () => {
-            const { extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { extensionHost } = await integrationTestContext()
             assertToJSON(extensionHost.app.activeWindow, {
                 visibleViewComponents: [
                     {
@@ -23,8 +22,7 @@ describe('Windows (integration)', () => {
 
     describe('app.windows', () => {
         it('lists windows', async () => {
-            const { extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { extensionHost } = await integrationTestContext()
             assertToJSON(extensionHost.app.windows, [
                 {
                     visibleViewComponents: [
@@ -38,14 +36,14 @@ describe('Windows (integration)', () => {
         })
 
         it('adds new text documents', async () => {
-            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
+            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
 
             environment.next({
                 ...getEnvironment(),
                 visibleTextDocuments: [{ uri: 'file:///f2', languageId: 'l2', text: 't2' }],
             })
+            await extensionHost.internal.sync()
 
-            await ready
             assertToJSON(extensionHost.app.windows, [
                 {
                     visibleViewComponents: [
@@ -61,8 +59,7 @@ describe('Windows (integration)', () => {
 
     describe('Window', () => {
         it('Window#showNotification', async () => {
-            const { client, extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { client, extensionHost } = await integrationTestContext()
             const values = collectSubscribableValues(client.showMessages)
             extensionHost.app.activeWindow!.showNotification('a') // tslint:disable-line deprecation
             await extensionHost.internal.sync()
@@ -70,9 +67,8 @@ describe('Windows (integration)', () => {
         })
 
         it('Window#showMessage', async () => {
-            const { client, extensionHost, ready } = await integrationTestContext()
+            const { client, extensionHost } = await integrationTestContext()
             client.showMessageRequests.subscribe(({ resolve }) => resolve(Promise.resolve(null)))
-            await ready
             const values = collectSubscribableValues(
                 client.showMessageRequests.pipe(map(({ message, type }) => ({ message, type })))
             )
@@ -81,9 +77,8 @@ describe('Windows (integration)', () => {
         })
 
         it('Window#showInputBox', async () => {
-            const { client, extensionHost, ready } = await integrationTestContext()
+            const { client, extensionHost } = await integrationTestContext()
             client.showInputs.subscribe(({ resolve }) => resolve(Promise.resolve('c')))
-            await ready
             const values = collectSubscribableValues(
                 client.showInputs.pipe(map(({ message, defaultValue }) => ({ message, defaultValue })))
             )

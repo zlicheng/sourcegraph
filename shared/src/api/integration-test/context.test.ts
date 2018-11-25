@@ -6,8 +6,7 @@ import { collectSubscribableValues, integrationTestContext } from './helpers.tes
 describe('Context (integration)', () => {
     describe('internal.updateContext', () => {
         it('updates context', async () => {
-            const { environment, extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { environment, extensionHost } = await integrationTestContext()
             const values = collectSubscribableValues(
                 environment.pipe(
                     map(({ context }) => context),

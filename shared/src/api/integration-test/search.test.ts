@@ -4,11 +4,11 @@ import { integrationTestContext } from './helpers.test'
 
 describe('search (integration)', () => {
     it('registers a query transformer', async () => {
-        const { registries, extensionHost, ready } = await integrationTestContext()
+        const { registries, extensionHost } = await integrationTestContext()
 
         // Register the provider and call it
         const unsubscribe = extensionHost.search.registerQueryTransformer({ transformQuery: () => 'bar' })
-        await ready
+        await extensionHost.internal.sync()
         assert.deepStrictEqual(
             await registries.queryTransformer
                 .transformQuery('foo')
@@ -29,12 +29,12 @@ describe('search (integration)', () => {
     })
 
     it('supports multiple query transformers', async () => {
-        const { registries, extensionHost, ready } = await integrationTestContext()
+        const { registries, extensionHost } = await integrationTestContext()
 
         // Register the provider and call it
         extensionHost.search.registerQueryTransformer({ transformQuery: q => `${q} bar` })
         extensionHost.search.registerQueryTransformer({ transformQuery: q => `${q} qux` })
-        await ready
+        await extensionHost.internal.sync()
         assert.deepStrictEqual(
             await registries.queryTransformer
                 .transformQuery('foo')

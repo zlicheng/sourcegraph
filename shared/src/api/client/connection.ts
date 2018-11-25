@@ -64,6 +64,9 @@ export function createExtensionHostClientConnection(
 ): ExtensionHostClientConnection {
     const subscription = new Subscription()
 
+    // TODO!(sqs): see if we can remove ping/pong from here and extensionHost.ts
+    connection.onRequest('ping', () => 'pong')
+
     subscription.add(
         new ClientConfiguration(
             connection,

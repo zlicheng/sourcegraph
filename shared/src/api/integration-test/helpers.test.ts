@@ -37,7 +37,6 @@ export async function integrationTestContext(): Promise<
         getEnvironment(): Environment
         environment: BehaviorSubject<Environment>
         registries: Registries
-        ready: Promise<void>
     }
 > {
     const [clientTransports, serverTransports] = createMessageTransports()
@@ -50,8 +49,8 @@ export async function integrationTestContext(): Promise<
         environment,
         registries,
         of(clientTransports).pipe(
-            switchMap(async messageTransports => {
-                const connection = createConnection(messageTransports)
+            switchMap(async clientTransports => {
+                const connection = createConnection(clientTransports)
                 connection.listen()
 
                 const initData: InitData = {
@@ -68,6 +67,7 @@ export async function integrationTestContext(): Promise<
     client.configurationUpdates.subscribe(({ resolve }) => resolve(Promise.resolve()))
 
     await client.ready
+    await (await extensionHost.__testAPI).internal.sync()
 
     // Wait for client to be ready.
     //
@@ -87,13 +87,7 @@ export async function integrationTestContext(): Promise<
             return environment.value
         },
         environment,
-        ready: ready({ client, extensionHost: await extensionHost.__testAPI }),
     }
-}
-
-/** @internal */
-async function ready({ extensionHost }: TestContext): Promise<void> {
-    await extensionHost.internal.sync()
 }
 
 /**

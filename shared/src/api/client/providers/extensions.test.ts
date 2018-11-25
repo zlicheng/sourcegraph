@@ -35,13 +35,20 @@ describe('activeExtensions', () => {
                             extensions: [{ id: 'x', manifest: null }],
                             visibleTextDocuments: [],
                         },
-                        b: { configuration: { final: {} }, extensions: [], visibleTextDocuments: [] },
+                        b: {
+                            configuration: { final: { extensions: {} } },
+                            extensions: [{ id: 'x', manifest: null }],
+                            visibleTextDocuments: [],
+                        },
                     }),
-                    noopExtensionActivationFilter
+                    environment =>
+                        (environment.extensions || []).filter(
+                            x => environment.configuration.final.extensions[x.id] === true
+                        )
                 )
-            ).toBe('-a-|', {
-                a: [{ id: 'x', manifest: null, rawManifest: null }],
-                b: [{ id: 'x', manifest: null, rawManifest: null }],
+            ).toBe('-a-b-|', {
+                a: [{ id: 'x', manifest: null }],
+                b: [{ id: 'x', manifest: null }],
             })
         ))
 })

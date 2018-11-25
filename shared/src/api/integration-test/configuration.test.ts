@@ -12,9 +12,8 @@ describe('Configuration (integration)', () => {
     })
 
     describe('Configuration#get', () => {
-        it('gets configuration after ready', async () => {
-            const { extensionHost, ready } = await integrationTestContext()
-            await ready
+        it('gets configuration', async () => {
+            const { extensionHost } = await integrationTestContext()
             assertToJSON(extensionHost.configuration.get(), { a: 1 })
             assert.deepStrictEqual(extensionHost.configuration.get().value, { a: 1 })
         })
@@ -22,8 +21,7 @@ describe('Configuration (integration)', () => {
 
     describe('Configuration#update', () => {
         it('updates configuration', async () => {
-            const { client, extensionHost, ready } = await integrationTestContext()
-            await ready
+            const { client, extensionHost } = await integrationTestContext()
 
             const values = collectSubscribableValues(
                 client.configurationUpdates.pipe(map(({ path, value }) => ({ path, value })))
@@ -42,8 +40,7 @@ describe('Configuration (integration)', () => {
 
     describe('configuration.subscribe', () => {
         it('subscribes to changes', async () => {
-            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
-            await ready
+            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
 
             let calls = 0
             extensionHost.configuration.subscribe(() => calls++)

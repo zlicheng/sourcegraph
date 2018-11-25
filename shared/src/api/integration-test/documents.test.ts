@@ -5,23 +5,19 @@ import { collectSubscribableValues, integrationTestContext } from './helpers.tes
 describe('Documents (integration)', () => {
     describe('workspace.textDocuments', () => {
         it('lists text documents', async () => {
-            const { extensionHost, ready } = await integrationTestContext()
-
-            await ready
+            const { extensionHost } = await integrationTestContext()
             assert.deepStrictEqual(extensionHost.workspace.textDocuments, [
                 { uri: 'file:///f', languageId: 'l', text: 't' },
             ] as TextDocument[])
         })
 
         it('adds new text documents', async () => {
-            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
-
+            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
             environment.next({
                 ...getEnvironment(),
                 visibleTextDocuments: [{ uri: 'file:///f2', languageId: 'l2', text: 't2' }],
             })
-
-            await ready
+            await extensionHost.internal.sync()
             assert.deepStrictEqual(extensionHost.workspace.textDocuments, [
                 { uri: 'file:///f', languageId: 'l', text: 't' },
                 { uri: 'file:///f2', languageId: 'l2', text: 't2' },
@@ -31,9 +27,8 @@ describe('Documents (integration)', () => {
 
     describe('workspace.onDidOpenTextDocument', () => {
         it('fires when a text document is opened', async () => {
-            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
+            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
 
-            await ready
             const values = collectSubscribableValues(extensionHost.workspace.onDidOpenTextDocument)
             assert.deepStrictEqual(values, [] as TextDocument[])
 

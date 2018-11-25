@@ -7,10 +7,9 @@ import { integrationTestContext } from './helpers.test'
 describe('CodeEditor (integration)', () => {
     describe('setDecorations', () => {
         it('adds decorations', async () => {
-            const { registries, extensionHost, ready } = await integrationTestContext()
+            const { registries, extensionHost } = await integrationTestContext()
 
             // Set some decorations and check they are present on the client.
-            await ready
             const codeEditor = extensionHost.app.windows[0].visibleViewComponents[0]
             codeEditor.setDecorations(null, [
                 {

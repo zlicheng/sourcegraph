@@ -111,11 +111,11 @@ function testLocationProvider<P>(
 ): void {
     describe(`languages.${name}`, () => {
         it('registers and unregisters a single provider', async () => {
-            const { registries, extensionHost, ready } = await integrationTestContext()
+            const { registries, extensionHost } = await integrationTestContext()
 
             // Register the provider and call it.
             const unsubscribe = registerProvider(extensionHost)(['*'], labeledProvider('a'))
-            await ready
+            await extensionHost.internal.sync()
             assert.deepStrictEqual(await getResult(registries), labeledProviderResults(['a']))
 
             // Unregister the provider and ensure it's removed.
@@ -124,7 +124,7 @@ function testLocationProvider<P>(
         })
 
         it('supplies params to the provideHover method', async () => {
-            const { registries, extensionHost, ready } = await integrationTestContext()
+            const { registries, extensionHost } = await integrationTestContext()
             const { wait, done } = createBarrier()
             registerProvider(extensionHost)(
                 ['*'],
@@ -134,18 +134,18 @@ function testLocationProvider<P>(
                     done()
                 })
             )
-            await ready
+            await extensionHost.internal.sync()
             await getResult(registries)
             await wait
         })
 
         it('supports multiple providers', async () => {
-            const { registries, extensionHost, ready } = await integrationTestContext()
+            const { registries, extensionHost } = await integrationTestContext()
 
             // Register 2 providers with different results.
             registerProvider(extensionHost)(['*'], labeledProvider('a'))
             registerProvider(extensionHost)(['*'], labeledProvider('b'))
-            await ready
+            await extensionHost.internal.sync()
 
             assert.deepStrictEqual(await getResult(registries), labeledProviderResults(['a', 'b']))
         })
