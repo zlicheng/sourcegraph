@@ -52,14 +52,14 @@ export class ExtensionRegistry {
                 }
             }),
             map(({ extensions }) => (extensions ? extensions.filter(x => activeExtensionIDs.includes(x.id)) : [])),
-            // TODO!(sqs): memoize getScriptURLForExtension
+            // TODO!2(sqs): memoize getScriptURLForExtension
             /** Run {@link ControllerHelpers.getScriptURLForExtension} last because it is nondeterministic. */
             map(extensions =>
                 extensions.map(x => ({
                     id: x.id,
-                    // TODO!(sqs): log errors but do not throw here
+                    // TODO!2(sqs): log errors but do not throw here
                     //
-                    // TODO!(sqs): also apply
+                    // TODO!2(sqs): also apply
                     // PlatformContext.getScriptURLForExtension here for browser ext
                     scriptURL: getScriptURLFromExtensionManifest(x),
                 }))

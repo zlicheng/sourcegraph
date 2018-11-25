@@ -1,5 +1,4 @@
 import { BehaviorSubject } from 'rxjs'
-import { filter } from 'rxjs/operators'
 import * as sourcegraph from 'sourcegraph'
 import { ClientConfigurationAPI } from '../../client/api/configuration'
 import { SettingsCascade } from '../../protocol'
@@ -44,26 +43,34 @@ export interface ExtConfigurationAPI<C> {
  * @template C - The configuration schema.
  */
 export class ExtConfiguration<C extends SettingsCascade<any>> implements ExtConfigurationAPI<C> {
-    private data = new BehaviorSubject<Readonly<C> | null>(null)
+    /**
+     * The settings data observable, assigned when the initial data is received from the client. Extensions should
+     * never be able to call {@link ExtConfiguration}'s methods before the initial data is received.
+     */
+    private data?: BehaviorSubject<Readonly<C>>
 
     constructor(private proxy: ClientConfigurationAPI) {}
 
-    public $acceptConfigurationData(data: Readonly<C>): Promise<void> {
-        this.data.next(Object.freeze(data))
-        return Promise.resolve()
+    public async $acceptConfigurationData(data: Readonly<C>): Promise<void> {
+        if (!this.data) {
+            this.data = new BehaviorSubject<Readonly<C>>(data)
+        } else {
+            this.data.next(Object.freeze(data))
+        }
+    }
+
+    private getData(): BehaviorSubject<Readonly<C>> {
+        if (!this.data) {
+            throw new Error('unexpected internal error: settings data is not yet available')
+        }
+        return this.data
     }
 
     public get(): sourcegraph.Configuration<C> {
-        if (this.data.value === null) {
-            throw new Error(
-                'TODO!(sqs): check that this is never called, it should always be non-null by when it gets here'
-            )
-        }
-        return Object.freeze(new ExtConfigurationSection<C>(this.proxy, this.data.value.final))
+        return Object.freeze(new ExtConfigurationSection<C>(this.proxy, this.getData().value.final))
     }
 
     public subscribe(next: () => void): sourcegraph.Unsubscribable {
-        // Do not emit until the configuration is available.
-        return this.data.pipe(filter(data => data !== null)).subscribe(next)
+        return this.getData().subscribe(next)
     }
 }
