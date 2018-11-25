@@ -1,5 +1,5 @@
-import { BehaviorSubject, Observable, of, Subject, Subscription, Unsubscribable } from 'rxjs'
-import { finalize, first, map } from 'rxjs/operators'
+import { BehaviorSubject, Observable, Subject, Unsubscribable } from 'rxjs'
+import { switchMap } from 'rxjs/operators'
 import {
     ConfigurationUpdateParams,
     LogMessageParams,
@@ -9,7 +9,7 @@ import {
     ShowMessageRequestParams,
 } from '../protocol'
 import { Connection } from '../protocol/jsonrpc2/connection'
-import { createExtensionHostClientConnection } from './connection'
+import { createExtensionHostClientConnection, ExtensionHostClientConnection } from './connection'
 import { Environment } from './environment'
 import { Registries } from './registries'
 
@@ -67,7 +67,6 @@ export function createExtensionHostClient(
     registries: Registries,
     extensionHostConnection: Observable<Connection>
 ): ExtensionHostClient {
-    const subscriptions = new Subscription()
     const observables: ExtensionHostClientObservables = {
         logMessages: new Subject<LogMessageParams>(),
         showMessages: new Subject<ShowMessageParams>(),
@@ -75,16 +74,20 @@ export function createExtensionHostClient(
         showInputs: new Subject<ShowInputRequest>(),
         configurationUpdates: new Subject<ConfigurationUpdate>(),
     }
-    const connection = extensionHostConnection.pipe(
-        map(connection => {
-            const client = createExtensionHostClientConnection(connection, environment, registries, observables)
-            return of(client).pipe(finalize(() => client.unsubscribe()))
-        })
-    )
-    subscriptions.add(connection.subscribe())
+    const subscription = extensionHostConnection
+        .pipe(
+            switchMap(connection => {
+                const client = createExtensionHostClientConnection(connection, environment, registries, observables)
+                return new Observable<ExtensionHostClientConnection>(sub => {
+                    sub.next(client)
+                    return () => client.unsubscribe()
+                })
+            })
+        )
+        .subscribe()
     return {
         ...observables,
-        ready: connection.pipe(first()).toPromise<any>(),
-        unsubscribe: () => subscriptions.unsubscribe(),
+        ready: Promise.resolve(void 0), // TODO!(sqs): remove the need for this and remove all callers
+        unsubscribe: () => subscription.unsubscribe(),
     }
 }

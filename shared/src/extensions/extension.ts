@@ -73,17 +73,10 @@ export function isExtensionEnabled(settings: Settings | ErrorLike | null, extens
  */
 export function getScriptURLFromExtensionManifest(extension: Extension): string {
     if (!extension.manifest) {
-        throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no manifest found`)
+        throw new Error(`extension ${JSON.stringify(extension.id)}: no manifest found`)
     }
-    // TODO!(sqs): probably not needed:
-    //
-    // if (isErrorLike(extension.manifest)) {
-    //     throw new Error(
-    //         `unable to run extension ${JSON.stringify(extension.id)}: invalid manifest: ${extension.manifest.message}`
-    //     )
-    // }
     if (!extension.manifest.url) {
-        throw new Error(`unable to run extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
+        throw new Error(`extension ${JSON.stringify(extension.id)}: no "url" property in manifest`)
     }
     return extension.manifest.url
 }

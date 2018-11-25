@@ -7,7 +7,6 @@ import { gql } from '../../../shared/src/graphql/graphql'
 import { PlatformContext } from '../../../shared/src/platform/context'
 import { mutateSettings, updateSettings } from '../../../shared/src/settings/edit'
 import { gqlToCascade } from '../../../shared/src/settings/settings'
-import { isErrorLike } from '../../../shared/src/util/errors'
 import { requestGraphQL } from '../backend/graphql'
 import { sendLSPHTTPRequests } from '../backend/lsp'
 import { Tooltip } from '../components/tooltip/Tooltip'
@@ -64,7 +63,6 @@ export function createPlatformContext(): PlatformContext {
         queryLSP: requests => sendLSPHTTPRequests(requests),
         forceUpdateTooltip: () => Tooltip.forceUpdate(),
         createExtensionHost: () => {
-            // TODO!(sqs): bundleURL is ignored
             const worker = new ExtensionHostWorker()
             const messageTransports = createWebWorkerMessageTransports(worker)
             return new Observable(sub => {

@@ -26,7 +26,6 @@ export class ClientConfiguration<C> implements ClientConfigurationAPI {
 
         this.subscriptions.add(
             environmentConfiguration.subscribe(config => {
-                console.log('send config')
                 this.proxy.$acceptConfigurationData(config).catch(error => {
                     if (error instanceof ConnectionError && error.code === ConnectionErrors.Unsubscribed) {
                         // This error was probably caused by the user disabling

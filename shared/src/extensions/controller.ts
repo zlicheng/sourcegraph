@@ -1,5 +1,5 @@
 import { BehaviorSubject, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
-import { filter, map, mergeMap, switchMap } from 'rxjs/operators'
+import { filter, map, mergeMap, share, switchMap } from 'rxjs/operators'
 import { createExtensionHostClient } from '../api/client/client'
 import { EMPTY_ENVIRONMENT, Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
@@ -82,7 +82,8 @@ export function createController(context: PlatformContext, environment: Behavior
             }
             await connection.sendRequest('initialize', [initData])
             return connection
-        })
+        }),
+        share()
     )
     const client = createExtensionHostClient(environment, registries, extensionHostConnection)
     subscriptions.add(client)
