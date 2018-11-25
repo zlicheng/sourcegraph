@@ -43,9 +43,6 @@ export interface ExtensionHostClientObservables {
 }
 
 export interface ExtensionHostClient extends ExtensionHostClientObservables, Unsubscribable {
-    /** @internal */
-    readonly ready: Promise<void>
-
     /**
      * Closes the connection to the extension host and stops the controller from reestablishing new
      * connections.
@@ -87,7 +84,6 @@ export function createExtensionHostClient(
         .subscribe()
     return {
         ...observables,
-        ready: Promise.resolve(void 0), // TODO!(sqs): remove the need for this and remove all callers
         unsubscribe: () => subscription.unsubscribe(),
     }
 }
