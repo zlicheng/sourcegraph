@@ -13,8 +13,8 @@ import {
     createController as createExtensionsController,
     ExtensionsControllerProps,
 } from '../../shared/src/extensions/controller'
-import { ConfiguredExtension } from '../../shared/src/extensions/extension'
-import { viewerConfiguredExtensions } from '../../shared/src/extensions/helpers'
+import { ConfiguredRegistryExtension } from '../../shared/src/extensions/extension'
+import { viewerConfiguredRegistryExtensions } from '../../shared/src/extensions/helpers'
 import * as GQL from '../../shared/src/graphql/schema'
 import { Notifications } from '../../shared/src/notifications/Notifications'
 import { PlatformContextProps } from '../../shared/src/platform/context'
@@ -183,8 +183,8 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         //
         // TODO(sqs): handle loading and errors
         this.subscriptions.add(
-            viewerConfiguredExtensions(this.state.platformContext).subscribe(
-                extensions => this.onViewerConfiguredExtensionsChange(extensions),
+            viewerConfiguredRegistryExtensions(this.state.platformContext).subscribe(
+                extensions => this.onViewerConfiguredRegistryExtensionsChange(extensions),
                 err => console.error(err)
             )
         )
@@ -324,8 +324,8 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, roots })
     }
 
-    private onViewerConfiguredExtensionsChange(viewerConfiguredExtensions: ConfiguredExtension[]): void {
-        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, extensions: viewerConfiguredExtensions })
+    private onViewerConfiguredRegistryExtensionsChange(viewerConfiguredRegistryExtensions: ConfiguredRegistryExtension[]): void {
+        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, extensions: viewerConfiguredRegistryExtensions })
     }
 
     private extensionsOnVisibleTextDocumentsChange = (visibleTextDocuments: TextDocumentItem[] | null): void => {

@@ -13,8 +13,8 @@ import {
     takeUntil,
     withLatestFrom,
 } from 'rxjs/operators'
-import { ConfiguredExtension, toConfiguredExtensions } from '../../../shared/src/extensions/extension'
-import { viewerConfiguredExtensions } from '../../../shared/src/extensions/helpers'
+import { ConfiguredRegistryExtension, toConfiguredRegistryExtension } from '../../../shared/src/extensions/extension'
+import { viewerConfiguredRegistryExtensions } from '../../../shared/src/extensions/helpers'
 import { gql } from '../../../shared/src/graphql/graphql'
 import * as GQL from '../../../shared/src/graphql/schema'
 import { PlatformContextProps } from '../../../shared/src/platform/context'
@@ -70,7 +70,7 @@ const LOADING: 'loading' = 'loading'
 
 interface ExtensionsResult {
     /** The configured extensions. */
-    extensions: ConfiguredExtension<GQL.IRegistryExtension>[]
+    extensions: ConfiguredRegistryExtension<GQL.IRegistryExtension>[]
 
     /** An error message that should be displayed to the user (in addition to the configured extensions). */
     error: string | null
@@ -247,7 +247,7 @@ export class ExtensionsList extends React.PureComponent<Props, State> {
     private onQueryChange: React.FormEventHandler<HTMLInputElement> = e => this.queryChanges.next(e.currentTarget.value)
 
     private queryRegistryExtensions = (args: { query?: string }): Observable<ExtensionsResult> =>
-        viewerConfiguredExtensions(this.props.platformContext).pipe(
+        viewerConfiguredRegistryExtensions(this.props.platformContext).pipe(
             // Avoid refreshing (and changing order) when the user merely interacts with an extension (e.g.,
             // toggling its enablement), to reduce UI jitter.
             take(1),
@@ -290,7 +290,7 @@ export class ExtensionsList extends React.PureComponent<Props, State> {
                 )
             ),
             map(({ registryExtensions, error }) => ({
-                extensions: toConfiguredExtensions(registryExtensions),
+                extensions: registryExtensions.map(x => toConfiguredRegistryExtension(x)),
                 error,
             }))
         )

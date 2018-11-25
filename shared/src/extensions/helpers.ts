@@ -5,7 +5,7 @@ import * as GQL from '../graphql/schema'
 import { PlatformContext } from '../platform/context'
 import { SettingsCascadeOrError } from '../settings/settings'
 import { asError, createAggregateError, ErrorLike, isErrorLike } from '../util/errors'
-import { ConfiguredExtension, toConfiguredExtension } from './extension'
+import { ConfiguredExtension, toConfiguredRegistryExtension } from './extension'
 
 const LOADING: 'loading' = 'loading'
 
@@ -100,7 +100,7 @@ export function queryConfiguredExtensions(
                 const registryExtension = registryExtensions.find(x => x.extensionID === extensionID)
                 configuredExtensions.push(
                     registryExtension
-                        ? toConfiguredExtension(registryExtension)
+                        ? toConfiguredRegistryExtension(registryExtension)
                         : { id: extensionID, manifest: null, rawManifest: null, registryExtension: undefined }
                 )
             }
