@@ -25,11 +25,6 @@ export class ExtExtensions implements ExtExtensionsAPI, Unsubscribable {
      * @returns A promise that resolves when the extension's activation finishes (i.e., when it returns if it's synchronous, or when the promise it returns resolves if it's async).
      */
     public async $activateExtension(extensionID: string, bundleURL: string): Promise<void> {
-        // TODO!(sqs)
-        console.log(
-            'TODO!(sqs): check origin to avoid executing untrusted code, see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Security_concerns'
-        )
-
         // Load the extension bundle and retrieve the extension entrypoint module's exports on
         // the global `module` property.
         try {
