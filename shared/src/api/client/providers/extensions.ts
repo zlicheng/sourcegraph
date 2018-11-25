@@ -24,22 +24,43 @@ import { Extension } from '../extension'
  * the current environment only. It does not need to account for remembering which extensions were previously
  * activated in prior states.
  */
-export function activeExtensions(
-    environment: Observable<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>,
-    extensionActivationFilter = extensionsWithMatchedActivationEvent
-): Observable<Extension[]> {
-    const activeExtensionIDs: string[] = []
-    return environment.pipe(
-        tap(environment => {
-            const activeExtensions = extensionActivationFilter(environment)
-            for (const x of activeExtensions) {
-                if (!activeExtensionIDs.includes(x.id)) {
-                    activeExtensionIDs.push(x.id)
+export class ExtensionRegistry {
+    /**
+     * Returns an observable that emits the set of extensions that should be active, based on the current state and
+     * each available extension's activationEvents. If an extension should be active and is not yet active, it should
+     * be activated.
+     *
+     * An extension is activated when one or more of its activationEvents is true. After an extension has been
+     * activated, it remains active for the rest of the session (i.e., for as long as the browser tab remains open).
+     *
+     * @internal This is an internal implementation detail and is different from the product feature called the
+     * "extension registry" (where users can search for and enable extensions).
+     *
+     * @todo Consider whether extensions should be deactivated if none of their activationEvents are true (or that plus
+     * a certain period of inactivity).
+     *
+     * @param environment An observable that emits when the environment changes.
+     * @param extensionActivationFilter A function that returns the set of extensions that should be activated based on
+     * the current environment only. It does not need to account for remembering which extensions were previously
+     * activated in prior states.
+     */
+    public activeExtensions(
+        environment: Observable<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>,
+        extensionActivationFilter = extensionsWithMatchedActivationEvent
+    ): Observable<Extension[]> {
+        const activeExtensionIDs: string[] = []
+        return environment.pipe(
+            tap(environment => {
+                const activeExtensions = extensionActivationFilter(environment)
+                for (const x of activeExtensions) {
+                    if (!activeExtensionIDs.includes(x.id)) {
+                        activeExtensionIDs.push(x.id)
+                    }
                 }
-            }
-        }),
-        map(({ extensions }) => (extensions ? extensions.filter(x => activeExtensionIDs.includes(x.id)) : []))
-    )
+            }),
+            map(({ extensions }) => (extensions ? extensions.filter(x => activeExtensionIDs.includes(x.id)) : []))
+        )
+    }
 }
 
 function extensionsWithMatchedActivationEvent(
