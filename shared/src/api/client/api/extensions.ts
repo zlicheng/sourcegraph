@@ -4,7 +4,7 @@ import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtExtensionsAPI } from '../../extension/api/extensions'
 import { Connection } from '../../protocol/jsonrpc2/connection'
 import { isEqual } from '../../util'
-import { ExecutableExtension, ExtensionRegistry } from '../providers/extensions'
+import { ExecutableExtension, ExtensionRegistry } from '../services/extensions'
 
 /** @internal */
 export class ClientExtensions {

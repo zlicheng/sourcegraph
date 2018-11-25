@@ -1,7 +1,7 @@
 import { isArray } from 'lodash-es'
 import { from, Subscription, throwError, Unsubscribable } from 'rxjs'
 import { switchMap, take } from 'rxjs/operators'
-import { CommandRegistry } from '../api/client/providers/command'
+import { CommandRegistry } from '../api/client/services/command'
 import { ActionContributionClientCommandUpdateConfiguration, ConfigurationUpdateParams } from '../api/protocol'
 import { PlatformContext } from '../platform/context'
 import { isErrorLike } from '../util/errors'
