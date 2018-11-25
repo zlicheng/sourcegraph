@@ -4,7 +4,7 @@ import { ConfigurationUpdateParams, MessageActionItem, ShowInputParams, ShowMess
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { createExtensionHostClientConnection, ExtensionHostClientConnection } from './connection'
 import { Environment } from './environment'
-import { Registries } from './registries'
+import { Services } from './services'
 
 interface PromiseCallback<T> {
     resolve: (p: T | Promise<T>) => void
@@ -36,13 +36,13 @@ export function createExtensionHostClient(
     // TODO!(sqs): make it possible to just use an observable of environment, not
     // behaviorsubject, to simplify data flow
     environment: BehaviorSubject<Environment>,
-    registries: Registries,
+    services: Services,
     extensionHostConnection: Observable<Connection>
 ): ExtensionHostClient {
     const subscription = extensionHostConnection
         .pipe(
             switchMap(connection => {
-                const client = createExtensionHostClientConnection(connection, environment, registries)
+                const client = createExtensionHostClientConnection(connection, environment, services)
                 return new Observable<ExtensionHostClientConnection>(sub => {
                     sub.next(client)
                     return () => client.unsubscribe()

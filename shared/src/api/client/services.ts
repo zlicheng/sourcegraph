@@ -12,9 +12,9 @@ import { QueryTransformerRegistry } from './providers/queryTransformer'
 import { ViewProviderRegistry } from './providers/view'
 
 /**
- * Registries is a container for all provider registries.
+ * Services is a container for all services used by the client application.
  */
-export class Registries {
+export class Services {
     constructor(private environment: Observable<Environment>) {}
 
     public readonly commands = new CommandRegistry()

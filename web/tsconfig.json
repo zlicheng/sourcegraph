@@ -4,6 +4,6 @@
     "typeRoots": ["../node_modules/@types", "src/types"],
     "jsx": "react"
   },
-  "include": ["**/*"],
+  "include": ["**/*", "../shared/src/api/client/services.test.ts", "../shared/src/api/client/services.ts"],
   "exclude": ["../node_modules"]
 }

@@ -2,7 +2,7 @@ import * as assert from 'assert'
 import { take } from 'rxjs/operators'
 import * as sourcegraph from 'sourcegraph'
 import { languages as sourcegraphLanguages } from 'sourcegraph'
-import { Registries } from '../client/registries'
+import { Services } from '../client/services'
 import { assertToJSON } from '../extension/types/common.test'
 import { URI } from '../extension/types/uri'
 import { Definition } from '../protocol/plainTypes'
@@ -20,8 +20,8 @@ describe('LanguageFeatures (integration)', () => {
             contents: labels.map(label => ({ value: label, kind: sourcegraph.MarkupKind.PlainText })),
         }),
         run => ({ provideHover: run } as sourcegraph.HoverProvider),
-        registries =>
-            registries.textDocumentHover
+        services =>
+            services.textDocumentHover
                 .getHover({ textDocument: { uri: 'file:///f' }, position: { line: 1, character: 2 } })
                 .pipe(take(1))
                 .toPromise()
@@ -35,8 +35,8 @@ describe('LanguageFeatures (integration)', () => {
             } as sourcegraph.DefinitionProvider),
         labeledDefinitionResults,
         run => ({ provideDefinition: run } as sourcegraph.DefinitionProvider),
-        registries =>
-            registries.textDocumentDefinition
+        services =>
+            services.textDocumentDefinition
                 .getLocation({ textDocument: { uri: 'file:///f' }, position: { line: 1, character: 2 } })
                 .pipe(take(1))
                 .toPromise()
@@ -50,8 +50,8 @@ describe('LanguageFeatures (integration)', () => {
             } as sourcegraph.TypeDefinitionProvider),
         labeledDefinitionResults,
         run => ({ provideTypeDefinition: run } as sourcegraph.TypeDefinitionProvider),
-        registries =>
-            registries.textDocumentTypeDefinition
+        services =>
+            services.textDocumentTypeDefinition
                 .getLocation({ textDocument: { uri: 'file:///f' }, position: { line: 1, character: 2 } })
                 .pipe(take(1))
                 .toPromise()
@@ -65,8 +65,8 @@ describe('LanguageFeatures (integration)', () => {
             } as sourcegraph.ImplementationProvider),
         labeledDefinitionResults,
         run => ({ provideImplementation: run } as sourcegraph.ImplementationProvider),
-        registries =>
-            registries.textDocumentImplementation
+        services =>
+            services.textDocumentImplementation
                 .getLocation({ textDocument: { uri: 'file:///f' }, position: { line: 1, character: 2 } })
                 .pipe(take(1))
                 .toPromise()
@@ -83,8 +83,8 @@ describe('LanguageFeatures (integration)', () => {
             ({
                 provideReferences: (doc, pos, _context: sourcegraph.ReferenceContext) => run(doc, pos),
             } as sourcegraph.ReferenceProvider),
-        registries =>
-            registries.textDocumentReferences
+        services =>
+            services.textDocumentReferences
                 .getLocation({
                     textDocument: { uri: 'file:///f' },
                     position: { line: 1, character: 2 },
@@ -107,24 +107,24 @@ function testLocationProvider<P>(
     labeledProvider: (label: string) => P,
     labeledProviderResults: (labels: string[]) => any,
     providerWithImpl: (run: (doc: sourcegraph.TextDocument, pos: sourcegraph.Position) => void) => P,
-    getResult: (registries: Registries) => Promise<any>
+    getResult: (services: Services) => Promise<any>
 ): void {
     describe(`languages.${name}`, () => {
         it('registers and unregisters a single provider', async () => {
-            const { registries, extensionHost } = await integrationTestContext()
+            const { services, extensionHost } = await integrationTestContext()
 
             // Register the provider and call it.
             const unsubscribe = registerProvider(extensionHost)(['*'], labeledProvider('a'))
             await extensionHost.internal.sync()
-            assert.deepStrictEqual(await getResult(registries), labeledProviderResults(['a']))
+            assert.deepStrictEqual(await getResult(services), labeledProviderResults(['a']))
 
             // Unregister the provider and ensure it's removed.
             unsubscribe.unsubscribe()
-            assert.deepStrictEqual(await getResult(registries), null)
+            assert.deepStrictEqual(await getResult(services), null)
         })
 
         it('supplies params to the provideHover method', async () => {
-            const { registries, extensionHost } = await integrationTestContext()
+            const { services, extensionHost } = await integrationTestContext()
             const { wait, done } = createBarrier()
             registerProvider(extensionHost)(
                 ['*'],
@@ -135,19 +135,19 @@ function testLocationProvider<P>(
                 })
             )
             await extensionHost.internal.sync()
-            await getResult(registries)
+            await getResult(services)
             await wait
         })
 
         it('supports multiple providers', async () => {
-            const { registries, extensionHost } = await integrationTestContext()
+            const { services, extensionHost } = await integrationTestContext()
 
             // Register 2 providers with different results.
             registerProvider(extensionHost)(['*'], labeledProvider('a'))
             registerProvider(extensionHost)(['*'], labeledProvider('b'))
             await extensionHost.internal.sync()
 
-            assert.deepStrictEqual(await getResult(registries), labeledProviderResults(['a', 'b']))
+            assert.deepStrictEqual(await getResult(services), labeledProviderResults(['a', 'b']))
         })
     })
 }

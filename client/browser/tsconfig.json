@@ -17,7 +17,9 @@
     "config/**/*.ts",
     "scripts/**/*.ts",
     "*.ts",
-    "../../shared/src/api/client/client.ts"
+    "../../shared/src/api/client/client.ts",
+    "../../shared/src/api/client/services.test.ts",
+    "../../shared/src/api/client/services.ts"
   ],
   "exclude": ["../../node_modules", "./build/**/*", "./*.safariextension"]
 }

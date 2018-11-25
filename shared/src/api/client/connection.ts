@@ -23,7 +23,7 @@ import { ClientViews } from './api/views'
 import { ClientWindows } from './api/windows'
 import { applyContextUpdate } from './context/context'
 import { Environment } from './environment'
-import { Registries } from './registries'
+import { Services } from './services'
 
 export interface ExtensionHostClientConnection {
     /**
@@ -56,7 +56,7 @@ export interface ActivatedExtension {
 export function createExtensionHostClientConnection(
     connection: Connection,
     environment: BehaviorSubject<Environment>,
-    registries: Registries
+    services: Services
 ): ExtensionHostClientConnection {
     const subscription = new Subscription()
 
@@ -70,7 +70,7 @@ export function createExtensionHostClientConnection(
                 distinctUntilChanged()
             ),
             (params: ConfigurationUpdateParams) =>
-                new Promise<void>(resolve => registries.configurationUpdates.next({ ...params, resolve }))
+                new Promise<void>(resolve => services.configurationUpdates.next({ ...params, resolve }))
         )
     )
     subscription.add(
@@ -83,7 +83,7 @@ export function createExtensionHostClientConnection(
             })
         )
     )
-    subscription.add(new ClientExtensions(connection, registries.extensions))
+    subscription.add(new ClientExtensions(connection, services.extensions))
     subscription.add(
         new ClientWindows(
             connection,
@@ -91,19 +91,19 @@ export function createExtensionHostClientConnection(
                 map(({ visibleTextDocuments }) => visibleTextDocuments),
                 distinctUntilChanged()
             ),
-            (params: ShowMessageParams) => registries.showMessages.next({ ...params }),
+            (params: ShowMessageParams) => services.showMessages.next({ ...params }),
             (params: ShowMessageRequestParams) =>
                 new Promise<MessageActionItem | null>(resolve => {
-                    registries.showMessageRequests.next({ ...params, resolve })
+                    services.showMessageRequests.next({ ...params, resolve })
                 }),
             (params: ShowInputParams) =>
                 new Promise<string | null>(resolve => {
-                    registries.showInputs.next({ ...params, resolve })
+                    services.showInputs.next({ ...params, resolve })
                 })
         )
     )
-    subscription.add(new ClientViews(connection, registries.views))
-    subscription.add(new ClientCodeEditor(connection, registries.textDocumentDecoration))
+    subscription.add(new ClientViews(connection, services.views))
+    subscription.add(new ClientCodeEditor(connection, services.textDocumentDecoration))
     subscription.add(
         new ClientDocuments(
             connection,
@@ -116,15 +116,15 @@ export function createExtensionHostClientConnection(
     subscription.add(
         new ClientLanguageFeatures(
             connection,
-            registries.textDocumentHover,
-            registries.textDocumentDefinition,
-            registries.textDocumentTypeDefinition,
-            registries.textDocumentImplementation,
-            registries.textDocumentReferences
+            services.textDocumentHover,
+            services.textDocumentDefinition,
+            services.textDocumentTypeDefinition,
+            services.textDocumentImplementation,
+            services.textDocumentReferences
         )
     )
-    subscription.add(new Search(connection, registries.queryTransformer))
-    subscription.add(new ClientCommands(connection, registries.commands))
+    subscription.add(new Search(connection, services.queryTransformer))
+    subscription.add(new ClientCommands(connection, services.commands))
     subscription.add(
         new ClientRoots(
             connection,

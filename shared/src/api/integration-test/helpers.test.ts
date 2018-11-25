@@ -3,7 +3,7 @@ import { switchMap } from 'rxjs/operators'
 import * as sourcegraph from 'sourcegraph'
 import { createExtensionHostClient, ExtensionHostClient } from '../client/client'
 import { Environment } from '../client/environment'
-import { Registries } from '../client/registries'
+import { Services } from '../client/services'
 import { InitData, startExtensionHost } from '../extension/extensionHost'
 import { createConnection } from '../protocol/jsonrpc2/connection'
 import { createMessageTransports } from '../protocol/jsonrpc2/helpers.test'
@@ -35,7 +35,7 @@ interface TestContext {
 export async function integrationTestContext(): Promise<
     TestContext & {
         environment: BehaviorSubject<Environment>
-        registries: Registries
+        services: Services
     }
 > {
     const [clientTransports, serverTransports] = createMessageTransports()
@@ -43,10 +43,10 @@ export async function integrationTestContext(): Promise<
     const extensionHost = startExtensionHost(serverTransports)
 
     const environment = new BehaviorSubject<Environment>(FIXTURE_ENVIRONMENT)
-    const registries = new Registries(environment)
+    const services = new Services(environment)
     const client = createExtensionHostClient(
         environment,
-        registries,
+        services,
         of(clientTransports).pipe(
             switchMap(async clientTransports => {
                 const connection = createConnection(clientTransports)
@@ -63,7 +63,7 @@ export async function integrationTestContext(): Promise<
     )
 
     // Ack all configuration updates.
-    registries.configurationUpdates.subscribe(({ resolve }) => resolve(Promise.resolve()))
+    services.configurationUpdates.subscribe(({ resolve }) => resolve(Promise.resolve()))
 
     await (await extensionHost.__testAPI).internal.sync()
 
@@ -79,7 +79,7 @@ export async function integrationTestContext(): Promise<
     return {
         client,
         extensionHost: await extensionHost.__testAPI,
-        registries,
+        services,
         environment,
     }
 }

@@ -4,7 +4,7 @@ import { createExtensionHostClient } from '../api/client/client'
 import { Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
 import { ContributionRegistry } from '../api/client/providers/contribution'
-import { Registries } from '../api/client/registries'
+import { Services } from '../api/client/services'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
@@ -24,7 +24,7 @@ export interface Controller extends Unsubscribable {
      */
     readonly notifications: Observable<Notification>
 
-    registries: Registries
+    services: Services
 
     /**
      * Executes the command (registered in the CommandRegistry) specified in params. If an error is thrown, the
@@ -64,7 +64,7 @@ export interface ExtensionsControllerProps {
  * environment represents all of the client application state that the client needs to know.
  *
  * It receives state updates via calls to the setEnvironment method. It provides functionality and
- * results via its registries and the showMessages, etc., observables.
+ * results via its services and the showMessages, etc., observables.
  *
  * TODO!(sqs): move environment out of here
  */
@@ -74,7 +74,7 @@ export function createController(
 ): Controller {
     const subscriptions = new Subscription()
 
-    const registries = new Registries(environment)
+    const services = new Services(environment)
     const extensionHostConnection = context.createExtensionHost().pipe(
         switchMap(async messageTransports => {
             const connection = createConnection(messageTransports)
@@ -89,7 +89,7 @@ export function createController(
         }),
         share()
     )
-    const client = createExtensionHostClient(environment, registries, extensionHostConnection)
+    const client = createExtensionHostClient(environment, services, extensionHostConnection)
     subscriptions.add(client)
 
     const notifications = new Subject<Notification>()
@@ -108,17 +108,17 @@ export function createController(
     //     }
     // })
 
-    subscriptions.add(registerBuiltinClientCommands(context, registries.commands))
-    subscriptions.add(registerExtensionContributions(registries.contribution, environment))
+    subscriptions.add(registerBuiltinClientCommands(context, services.commands))
+    subscriptions.add(registerExtensionContributions(services.contribution, environment))
 
     // Show messages (that don't need user input) as global notifications.
-    subscriptions.add(registries.showMessages.subscribe(({ message, type }) => notifications.next({ message, type })))
+    subscriptions.add(services.showMessages.subscribe(({ message, type }) => notifications.next({ message, type })))
 
     function messageFromExtension(message: string): string {
         return `From extension:\n\n${message}`
     }
     subscriptions.add(
-        registries.showMessageRequests.subscribe(({ message, actions, resolve }) => {
+        services.showMessageRequests.subscribe(({ message, actions, resolve }) => {
             if (!actions || actions.length === 0) {
                 alert(messageFromExtension(message))
                 resolve(null)
@@ -134,12 +134,12 @@ export function createController(
         })
     )
     subscriptions.add(
-        registries.showInputs.subscribe(({ message, defaultValue, resolve }) =>
+        services.showInputs.subscribe(({ message, defaultValue, resolve }) =>
             resolve(prompt(messageFromExtension(message), defaultValue))
         )
     )
     subscriptions.add(
-        registries.configurationUpdates
+        services.configurationUpdates
             .pipe(
                 mergeMap(params => {
                     const update = updateConfiguration(context, params)
@@ -152,7 +152,7 @@ export function createController(
 
     // Print window/logMessage log messages to the browser devtools console.
     subscriptions.add(
-        registries.logMessages.subscribe(({ message }) => {
+        services.logMessages.subscribe(({ message }) => {
             log('info', 'EXT', message)
         })
     )
@@ -176,9 +176,9 @@ export function createController(
 
     return {
         notifications,
-        registries,
+        services,
         executeCommand: params =>
-            registries.commands.executeCommand(params).catch(err => {
+            services.commands.executeCommand(params).catch(err => {
                 notifications.next({ message: err, type: MessageType.Error, source: params.command })
                 return Promise.reject(err)
             }),
