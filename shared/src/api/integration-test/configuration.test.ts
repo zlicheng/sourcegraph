@@ -40,15 +40,14 @@ describe('Configuration (integration)', () => {
 
     describe('configuration.subscribe', () => {
         it('subscribes to changes', async () => {
-            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
+            const { environment, extensionHost } = await integrationTestContext()
 
             let calls = 0
             extensionHost.configuration.subscribe(() => calls++)
             assert.strictEqual(calls, 1) // called initially
 
-            const prevEnvironment = getEnvironment()
             environment.next({
-                ...prevEnvironment,
+                ...environment.value,
                 configuration: { final: { a: 3 } },
             })
             await extensionHost.internal.sync()

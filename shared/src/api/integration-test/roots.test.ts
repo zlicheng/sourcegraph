@@ -11,10 +11,10 @@ describe('Workspace roots (integration)', () => {
         })
 
         it('adds new text documents', async () => {
-            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
+            const { environment, extensionHost } = await integrationTestContext()
 
             environment.next({
-                ...getEnvironment(),
+                ...environment.value,
                 roots: [{ uri: 'file:///a' }, { uri: 'file:///b' }],
             })
             await extensionHost.internal.sync()
@@ -28,13 +28,13 @@ describe('Workspace roots (integration)', () => {
 
     describe('workspace.onDidChangeRoots', () => {
         it('fires when a root is added or removed', async () => {
-            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
+            const { environment, extensionHost } = await integrationTestContext()
 
             const values = collectSubscribableValues(extensionHost.workspace.onDidChangeRoots)
             assert.deepStrictEqual(values, [] as void[])
 
             environment.next({
-                ...getEnvironment(),
+                ...environment.value,
                 roots: [{ uri: 'file:///a' }],
             })
             await extensionHost.internal.sync()

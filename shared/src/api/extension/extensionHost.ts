@@ -126,10 +126,11 @@ function createExtensionAPI(
     initData: InitData,
     connection: Connection
 ): { api: typeof sourcegraph; subscription: Subscription } {
-    // TODO!(sqs): add things to this subscription
     const subscriptions = new Subscription()
 
     // For debugging/tests.
+    //
+    // TODO!(sqs): see if we can remove this
     const sync = () => connection.sendRequest<void>('ping')
     connection.onRequest('ping', () => 'pong')
 
@@ -140,6 +141,7 @@ function createExtensionAPI(
     handleRequests(connection, 'documents', documents)
 
     const extensions = new ExtExtensions()
+    subscriptions.add(extensions)
     handleRequests(connection, 'extensions', extensions)
 
     const roots = new ExtRoots()
@@ -149,18 +151,22 @@ function createExtensionAPI(
     handleRequests(connection, 'windows', windows)
 
     const views = new ExtViews(createProxy(connection, 'views'))
+    subscriptions.add(views)
     handleRequests(connection, 'views', views)
 
     const configuration = new ExtConfiguration<any>(createProxy(connection, 'configuration'))
     handleRequests(connection, 'configuration', configuration)
 
     const languageFeatures = new ExtLanguageFeatures(createProxy(connection, 'languageFeatures'), documents)
+    subscriptions.add(languageFeatures)
     handleRequests(connection, 'languageFeatures', languageFeatures)
 
     const search = new ExtSearch(createProxy(connection, 'search'))
+    subscriptions.add(search)
     handleRequests(connection, 'search', search)
 
     const commands = new ExtCommands(createProxy(connection, 'commands'))
+    subscriptions.add(commands)
     handleRequests(connection, 'commands', commands)
 
     const api: typeof sourcegraph = {

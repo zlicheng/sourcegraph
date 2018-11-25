@@ -36,10 +36,10 @@ describe('Windows (integration)', () => {
         })
 
         it('adds new text documents', async () => {
-            const { environment, extensionHost, getEnvironment } = await integrationTestContext()
+            const { environment, extensionHost } = await integrationTestContext()
 
             environment.next({
-                ...getEnvironment(),
+                ...environment.value,
                 visibleTextDocuments: [{ uri: 'file:///f2', languageId: 'l2', text: 't2' }],
             })
             await extensionHost.internal.sync()

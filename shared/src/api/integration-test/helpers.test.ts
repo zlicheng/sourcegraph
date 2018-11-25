@@ -34,7 +34,6 @@ interface TestContext {
  */
 export async function integrationTestContext(): Promise<
     TestContext & {
-        getEnvironment(): Environment
         environment: BehaviorSubject<Environment>
         registries: Registries
     }
@@ -82,10 +81,6 @@ export async function integrationTestContext(): Promise<
         client,
         extensionHost: await extensionHost.__testAPI,
         registries,
-        getEnvironment(): Environment {
-            // TODO!(sqs): replace getEnvironment calls with environment.value
-            return environment.value
-        },
         environment,
     }
 }
