@@ -119,7 +119,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
             extensionsEnvironment: {
                 ...this.extensionsEnvironment.value,
                 context: {
-                    // TODO!(sqs): still necessary?
+                    // TODO!3(sqs): still necessary?
                     'clientApplication.isSourcegraph': true,
                 },
             },
@@ -324,8 +324,13 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, roots })
     }
 
-    private onViewerConfiguredRegistryExtensionsChange(viewerConfiguredRegistryExtensions: ConfiguredRegistryExtension[]): void {
-        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, extensions: viewerConfiguredRegistryExtensions })
+    private onViewerConfiguredRegistryExtensionsChange(
+        viewerConfiguredRegistryExtensions: ConfiguredRegistryExtension[]
+    ): void {
+        this.extensionsEnvironment.next({
+            ...this.extensionsEnvironment.value,
+            extensions: viewerConfiguredRegistryExtensions,
+        })
     }
 
     private extensionsOnVisibleTextDocumentsChange = (visibleTextDocuments: TextDocumentItem[] | null): void => {

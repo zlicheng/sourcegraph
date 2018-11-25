@@ -14,11 +14,11 @@ export interface ExtensionHostClient extends Unsubscribable {
 }
 
 /**
- * The client. TODO!(sqs), make this for all shared code and the internal "extension" API, not just
- * cross-context extensions.
+ * The client. TODO!2(sqs), make this for all shared code and the internal "extension" API, not just cross-context
+ * extensions.
  *
- * @param extensionHostConnection An observable that emits at most once (TODO!(sqs): or multiple
- * times? to handle connection drops/reestablishments).
+ * @param extensionHostConnection An observable that emits the connection to the extension host each time a new
+ * connection is established.
  */
 export function createExtensionHostClient(
     // TODO!(sqs): make it possible to just use an observable of environment, not

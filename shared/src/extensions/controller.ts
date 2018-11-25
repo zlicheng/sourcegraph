@@ -56,8 +56,6 @@ export interface ExtensionsControllerProps {
 }
 
 /**
- * TODO!(sqs): clean this up
- *
  * Creates the controller, which handles all communication between the client application and
  * extensions.
  *

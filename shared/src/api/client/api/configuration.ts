@@ -6,7 +6,7 @@ import { Connection, ConnectionError, ConnectionErrors } from '../../protocol/js
 import { SettingsUpdate } from '../services/settings'
 
 /** @internal */
-// TODO!(sqs): rename to settings
+// TODO!3(sqs): rename to settings
 export interface ClientConfigurationAPI {
     $acceptConfigurationUpdate(params: SettingsUpdate): Promise<void>
 }
