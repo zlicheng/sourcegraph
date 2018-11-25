@@ -4,13 +4,13 @@ import { integrationTestContext } from './helpers.test'
 
 describe('search (integration)', () => {
     it('registers a query transformer', async () => {
-        const { clientController, extensionHost, ready } = await integrationTestContext()
+        const { registries, extensionHost, ready } = await integrationTestContext()
 
         // Register the provider and call it
         const unsubscribe = extensionHost.search.registerQueryTransformer({ transformQuery: () => 'bar' })
         await ready
         assert.deepStrictEqual(
-            await clientController.registries.queryTransformer
+            await registries.queryTransformer
                 .transformQuery('foo')
                 .pipe(take(1))
                 .toPromise(),
@@ -20,7 +20,7 @@ describe('search (integration)', () => {
         // Unregister the provider and ensure it's removed.
         unsubscribe.unsubscribe()
         assert.deepStrictEqual(
-            await clientController.registries.queryTransformer
+            await registries.queryTransformer
                 .transformQuery('foo')
                 .pipe(take(1))
                 .toPromise(),
@@ -29,14 +29,14 @@ describe('search (integration)', () => {
     })
 
     it('supports multiple query transformers', async () => {
-        const { clientController, extensionHost, ready } = await integrationTestContext()
+        const { registries, extensionHost, ready } = await integrationTestContext()
 
         // Register the provider and call it
         extensionHost.search.registerQueryTransformer({ transformQuery: q => `${q} bar` })
         extensionHost.search.registerQueryTransformer({ transformQuery: q => `${q} qux` })
         await ready
         assert.deepStrictEqual(
-            await clientController.registries.queryTransformer
+            await registries.queryTransformer
                 .transformQuery('foo')
                 .pipe(take(1))
                 .toPromise(),

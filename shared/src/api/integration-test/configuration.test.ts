@@ -22,11 +22,11 @@ describe('Configuration (integration)', () => {
 
     describe('Configuration#update', () => {
         it('updates configuration', async () => {
-            const { clientController, extensionHost, ready } = await integrationTestContext()
+            const { client, extensionHost, ready } = await integrationTestContext()
             await ready
 
             const values = collectSubscribableValues(
-                clientController.configurationUpdates.pipe(map(({ path, value }) => ({ path, value })))
+                client.configurationUpdates.pipe(map(({ path, value }) => ({ path, value })))
             )
 
             await extensionHost.configuration.get().update('a', 2)
@@ -42,7 +42,7 @@ describe('Configuration (integration)', () => {
 
     describe('configuration.subscribe', () => {
         it('subscribes to changes', async () => {
-            const { clientController, extensionHost, getEnvironment, ready } = await integrationTestContext()
+            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
             await ready
 
             let calls = 0
@@ -50,7 +50,7 @@ describe('Configuration (integration)', () => {
             assert.strictEqual(calls, 1) // called initially
 
             const prevEnvironment = getEnvironment()
-            clientController.setEnvironment({
+            environment.next({
                 ...prevEnvironment,
                 configuration: { final: { a: 3 } },
             })

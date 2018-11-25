@@ -25,6 +25,7 @@ import { ClientWindows } from './api/windows'
 import { ExtensionHostClientObservables } from './client'
 import { applyContextUpdate } from './context/context'
 import { Environment } from './environment'
+import { activeExtensions } from './providers/extensions'
 import { Registries } from './registries'
 
 export interface ExtensionHostClientConnection {
@@ -87,29 +88,24 @@ export function createExtensionHostClientConnection(
     subscription.add(
         new ClientExtensions(
             connection,
-            environment.pipe(
-                map(({ extensions }) => extensions),
-                distinctUntilChanged(),
+            activeExtensions(environment).pipe(
                 // TODO!(sqs): memoize getScriptURLForExtension
                 /** Run {@link ControllerHelpers.getScriptURLForExtension} last because it is nondeterministic. */
-                switchMap(
-                    extensions =>
-                        extensions !== null && extensions.length > 0
-                            ? from(
-                                  Promise.all(
-                                      extensions.map(x =>
-                                          Promise.resolve({
-                                              id: x.id,
-                                              // TODO!(sqs): log errors but do not throw here
-                                              //
-                                              // TODO!(sqs): also apply
-                                              // PlatformContext.getScriptURLForExtension here for browser ext
-                                              scriptURL: getScriptURLFromExtensionManifest(x),
-                                          })
-                                      )
-                                  )
-                              )
-                            : [null]
+                switchMap(extensions =>
+                    from(
+                        Promise.all(
+                            extensions.map(x =>
+                                Promise.resolve({
+                                    id: x.id,
+                                    // TODO!(sqs): log errors but do not throw here
+                                    //
+                                    // TODO!(sqs): also apply
+                                    // PlatformContext.getScriptURLForExtension here for browser ext
+                                    scriptURL: getScriptURLFromExtensionManifest(x),
+                                })
+                            )
+                        )
+                    )
                 )
             )
         )

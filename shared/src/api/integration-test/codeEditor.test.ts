@@ -7,7 +7,7 @@ import { integrationTestContext } from './helpers.test'
 describe('CodeEditor (integration)', () => {
     describe('setDecorations', () => {
         it('adds decorations', async () => {
-            const { clientController, extensionHost, ready } = await integrationTestContext()
+            const { registries, extensionHost, ready } = await integrationTestContext()
 
             // Set some decorations and check they are present on the client.
             await ready
@@ -20,7 +20,7 @@ describe('CodeEditor (integration)', () => {
             ])
             await extensionHost.internal.sync()
             assert.deepStrictEqual(
-                await clientController.registries.textDocumentDecoration
+                await registries.textDocumentDecoration
                     .getDecorations({ uri: 'file:///f' })
                     .pipe(take(1))
                     .toPromise(),
@@ -36,7 +36,7 @@ describe('CodeEditor (integration)', () => {
             codeEditor.setDecorations(null, [])
             await extensionHost.internal.sync()
             assert.deepStrictEqual(
-                await clientController.registries.textDocumentDecoration
+                await registries.textDocumentDecoration
                     .getDecorations({ uri: 'file:///f' })
                     .pipe(take(1))
                     .toPromise(),

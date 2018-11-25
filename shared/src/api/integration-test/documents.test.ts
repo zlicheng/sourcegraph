@@ -14,11 +14,10 @@ describe('Documents (integration)', () => {
         })
 
         it('adds new text documents', async () => {
-            const { clientController, extensionHost, getEnvironment, ready } = await integrationTestContext()
+            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
 
-            const prevEnvironment = getEnvironment()
-            clientController.setEnvironment({
-                ...prevEnvironment,
+            environment.next({
+                ...getEnvironment(),
                 visibleTextDocuments: [{ uri: 'file:///f2', languageId: 'l2', text: 't2' }],
             })
 
@@ -32,15 +31,14 @@ describe('Documents (integration)', () => {
 
     describe('workspace.onDidOpenTextDocument', () => {
         it('fires when a text document is opened', async () => {
-            const { clientController, extensionHost, getEnvironment, ready } = await integrationTestContext()
+            const { environment, extensionHost, getEnvironment, ready } = await integrationTestContext()
 
             await ready
             const values = collectSubscribableValues(extensionHost.workspace.onDidOpenTextDocument)
             assert.deepStrictEqual(values, [] as TextDocument[])
 
-            const prevEnvironment = getEnvironment()
-            clientController.setEnvironment({
-                ...prevEnvironment,
+            environment.next({
+                ...getEnvironment(),
                 visibleTextDocuments: [{ uri: 'file:///f2', languageId: 'l2', text: 't2' }],
             })
             await extensionHost.internal.sync()

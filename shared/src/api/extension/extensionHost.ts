@@ -55,7 +55,9 @@ export interface InitData {
  * @param transports The message reader and writer to use for communication with the client.
  * @return An unsubscribable to terminate the extension host.
  */
-export function startExtensionHost(transports: MessageTransports): Unsubscribable {
+export function startExtensionHost(
+    transports: MessageTransports
+): Unsubscribable & { __testAPI: Promise<typeof sourcegraph> } {
     const connection = createConnection(transports, consoleLogger)
     connection.listen()
 
@@ -65,15 +67,19 @@ export function startExtensionHost(transports: MessageTransports): Unsubscribabl
     // Wait for "initialize" message from client application before proceeding to create the
     // extension host.
     let initialized = false
-    connection.onRequest('initialize', (initData: InitData) => {
-        if (initialized) {
-            throw new Error('extension host is already initialized')
-        }
-        initialized = true
-        subscription.add(initializeExtensionHost(connection, initData))
+    const __testAPI = new Promise<typeof sourcegraph>(resolve => {
+        connection.onRequest('initialize', (initData: InitData) => {
+            if (initialized) {
+                throw new Error('extension host is already initialized')
+            }
+            initialized = true
+            const { unsubscribe, __testAPI } = initializeExtensionHost(connection, initData)
+            subscription.add(unsubscribe)
+            resolve(__testAPI)
+        })
     })
 
-    return subscription
+    return { unsubscribe: () => subscription.unsubscribe(), __testAPI }
 }
 
 /**
@@ -87,14 +93,17 @@ export function startExtensionHost(transports: MessageTransports): Unsubscribabl
  * @param initData The information to initialize this extension host.
  * @return An unsubscribable to terminate the extension host.
  */
-function initializeExtensionHost(connection: Connection, initData: InitData): Unsubscribable {
+function initializeExtensionHost(
+    connection: Connection,
+    initData: InitData
+): Unsubscribable & { __testAPI: typeof sourcegraph } {
     const subscriptions = new Subscription()
 
     const { api, subscription: apiSubscription } = createExtensionAPI(initData, connection)
     subscriptions.add(apiSubscription)
 
     // Make `import 'sourcegraph'` or `require('sourcegraph')` return the extension API.
-    ;(self as any).require = (modulePath: string): any => {
+    ;(global as any).require = (modulePath: string): any => {
         if (modulePath === 'sourcegraph') {
             return api
         }
@@ -103,14 +112,14 @@ function initializeExtensionHost(connection: Connection, initData: InitData): Un
         throw new Error(`require: module not found: ${modulePath}`)
     }
     subscriptions.add(() => {
-        ;(self as any).require = () => {
+        ;(global as any).require = () => {
             // Prevent callers from attempting to access the extension API after it was
             // unsubscribed.
             throw new Error(`require: Sourcegraph extension API was unsubscribed`)
         }
     })
 
-    return subscriptions
+    return { unsubscribe: () => subscriptions.unsubscribe(), __testAPI: api }
 }
 
 function createExtensionAPI(

@@ -1,5 +1,5 @@
 import { BehaviorSubject, Observable, of, Subject, Subscription, Unsubscribable } from 'rxjs'
-import { finalize, map } from 'rxjs/operators'
+import { finalize, first, map } from 'rxjs/operators'
 import {
     ConfigurationUpdateParams,
     LogMessageParams,
@@ -43,6 +43,9 @@ export interface ExtensionHostClientObservables {
 }
 
 export interface ExtensionHostClient extends ExtensionHostClientObservables, Unsubscribable {
+    /** @internal */
+    readonly ready: Promise<void>
+
     /**
      * Closes the connection to the extension host and stops the controller from reestablishing new
      * connections.
@@ -72,18 +75,16 @@ export function createExtensionHostClient(
         showInputs: new Subject<ShowInputRequest>(),
         configurationUpdates: new Subject<ConfigurationUpdate>(),
     }
-    subscriptions.add(
-        extensionHostConnection
-            .pipe(
-                map(connection => {
-                    const client = createExtensionHostClientConnection(connection, environment, registries, observables)
-                    return of(client).pipe(finalize(() => client.unsubscribe()))
-                })
-            )
-            .subscribe()
+    const connection = extensionHostConnection.pipe(
+        map(connection => {
+            const client = createExtensionHostClientConnection(connection, environment, registries, observables)
+            return of(client).pipe(finalize(() => client.unsubscribe()))
+        })
     )
+    subscriptions.add(connection.subscribe())
     return {
         ...observables,
+        ready: connection.pipe(first()).toPromise<any>(),
         unsubscribe: () => subscriptions.unsubscribe(),
     }
 }

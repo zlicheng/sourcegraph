@@ -4,7 +4,8 @@ export interface Extension {
     readonly id: string
 
     // TODO!(sqs): remove this, dedupe it with ConfiguredExtension
-    manifest?: {
+    manifest: {
         url?: string
-    }
+        activationEvents?: string[]
+    } | null
 }

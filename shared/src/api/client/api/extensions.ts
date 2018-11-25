@@ -1,11 +1,14 @@
 import { Observable, Subscription } from 'rxjs'
-import { bufferCount, distinctUntilChanged, map, startWith } from 'rxjs/operators'
+import { bufferCount, distinctUntilChanged, startWith } from 'rxjs/operators'
 import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtExtensionsAPI } from '../../extension/api/extensions'
 import { Connection } from '../../protocol/jsonrpc2/connection'
 import { isEqual } from '../../util'
 import { Extension } from '../extension'
 
+/**
+ * The information about an extension necessary to activate it.
+ */
 interface ExtensionToActivate extends Pick<Extension, 'id'> {
     /** The URL to the JavaScript bundle of the extension. */
     scriptURL: string
@@ -23,18 +26,13 @@ export class ClientExtensions {
      * @param extensions An observable that emits the set of extensions that should be activated
      * upon subscription and whenever it changes.
      */
-    constructor(connection: Connection, extensions: Observable<ExtensionToActivate[] | null>) {
+    constructor(connection: Connection, activeExtensions: Observable<ExtensionToActivate[] | null>) {
         this.proxy = createProxyAndHandleRequests('extensions', connection, this)
 
         this.subscriptions.add(
-            extensions
+            activeExtensions
                 .pipe(
-                    map(extensions => (extensions === null || extensions.length === 0 ? null : extensions)),
-
-                    // TODO!(sqs): hack until add back environmentFilter
-                    map(extensions => (extensions || []).filter(x => x.id.includes('hello-world-hover'))),
-
-                    startWith(null),
+                    startWith([]),
                     distinctUntilChanged(),
                     bufferCount(2)
                 )
@@ -57,7 +55,11 @@ export class ClientExtensions {
                         }
                     }
 
-                    // Deactivate extensions that are no longer in use.
+                    /**
+                     * Deactivate extensions that are no longer in use. In practice,
+                     * {@link activeExtensions} never deactivates extensions, so this will never be
+                     * called (in the current implementation).
+                     */
                     for (const x of toDeactivate) {
                         this.proxy.$deactivateExtension(x.id).catch(err => {
                             console.warn(`Error deactivating extension ${JSON.stringify(x.id)}:`, err)
@@ -78,46 +80,3 @@ export class ClientExtensions {
         this.subscriptions.unsubscribe()
     }
 }
-
-// TODO!(sqs): reintroduce this
-//
-// /**
-//  * Filter the environment to omit extensions that should not be activated (based on their manifest's
-//  * activationEvents).
-//  */
-// function environmentFilter(
-//     nextEnvironment: Environment<ConfiguredExtension, SettingsCascade>
-// ): Environment<ConfiguredExtension, SettingsCascade> {
-//     return {
-//         ...nextEnvironment,
-//         extensions:
-//             nextEnvironment.extensions &&
-//             nextEnvironment.extensions.filter(x => {
-//                 try {
-//                     if (!isExtensionEnabled(nextEnvironment.configuration.final, x.id)) {
-//                         return false
-//                     } else if (!x.manifest) {
-//                         console.warn(
-//                             `Extension ${x.id} was not found. Remove it from settings to suppress this warning.`
-//                         )
-//                         return false
-//                     } else if (isErrorLike(x.manifest)) {
-//                         console.warn(asError(x.manifest))
-//                         return false
-//                     } else if (!x.manifest.activationEvents) {
-//                         console.warn(`Extension ${x.id} has no activation events, so it will never be activated.`)
-//                         return false
-//                     }
-//                     const visibleTextDocumentLanguages = nextEnvironment.visibleTextDocuments
-//                         ? nextEnvironment.visibleTextDocuments.map(({ languageId }) => languageId)
-//                         : []
-//                     return x.manifest.activationEvents.some(
-//                         e => e === '*' || visibleTextDocumentLanguages.some(l => e === `onLanguage:${l}`)
-//                     )
-//                 } catch (err) {
-//                     console.error(err)
-//                 }
-//                 return false
-//             }),
-//     }
-// }
