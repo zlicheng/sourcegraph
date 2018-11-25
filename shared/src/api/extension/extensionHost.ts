@@ -129,8 +129,6 @@ function createExtensionAPI(
     const subscriptions = new Subscription()
 
     // For debugging/tests.
-    //
-    // TODO!(sqs): see if we can remove this
     const sync = () => connection.sendRequest<void>('ping')
     connection.onRequest('ping', () => 'pong')
 
