@@ -2,7 +2,8 @@ import { isArray } from 'lodash-es'
 import { from, Subscription, throwError, Unsubscribable } from 'rxjs'
 import { switchMap, take } from 'rxjs/operators'
 import { CommandRegistry } from '../api/client/services/command'
-import { ActionContributionClientCommandUpdateConfiguration, ConfigurationUpdateParams } from '../api/protocol'
+import { SettingsUpdate } from '../api/client/services/settings'
+import { ActionContributionClientCommandUpdateConfiguration } from '../api/protocol'
 import { PlatformContext } from '../platform/context'
 import { isErrorLike } from '../util/errors'
 
@@ -111,7 +112,7 @@ export function urlForOpenPanel(viewID: string, urlHash: string): string {
  */
 export function updateConfiguration(
     context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings'>,
-    params: ConfigurationUpdateParams
+    params: SettingsUpdate
 ): Promise<void> {
     // TODO(sqs): Allow extensions to specify which subject's settings to update
     // (instead of always updating the highest-precedence subject's settings).
@@ -139,11 +140,11 @@ export function updateConfiguration(
 /**
  * Converts the arguments for the `updateConfiguration` client command (as documented in
  * {@link ActionContributionClientCommandUpdateConfiguration#commandArguments})
- * to {@link ConfigurationUpdateParams}.
+ * to {@link SettingsUpdate}.
  */
 export function convertUpdateConfigurationCommandArgs(
     args: ActionContributionClientCommandUpdateConfiguration['commandArguments']
-): ConfigurationUpdateParams {
+): SettingsUpdate {
     if (
         !isArray(args) ||
         !(args.length >= 2 && args.length <= 4) ||

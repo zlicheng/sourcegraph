@@ -1,6 +1,6 @@
 import * as assert from 'assert'
 import { map } from 'rxjs/operators'
-import { ConfigurationUpdate } from '../client/client'
+import { SettingsUpdate } from '../client/services/settings'
 import { assertToJSON } from '../extension/types/common.test'
 import { collectSubscribableValues, integrationTestContext } from './helpers.test'
 
@@ -24,17 +24,17 @@ describe('Configuration (integration)', () => {
             const { extensionHost, services } = await integrationTestContext()
 
             const values = collectSubscribableValues(
-                services.configurationUpdates.pipe(map(({ path, value }) => ({ path, value })))
+                services.settings.updates.pipe(map(({ path, value }) => ({ path, value })))
             )
 
             await extensionHost.configuration.get().update('a', 2)
             await extensionHost.internal.sync()
-            assert.deepStrictEqual(values, [{ path: ['a'], value: 2 }] as ConfigurationUpdate[])
+            assert.deepStrictEqual(values, [{ path: ['a'], value: 2 }] as SettingsUpdate[])
             values.length = 0 // clear
 
             await extensionHost.configuration.get().update('a', 3)
             await extensionHost.internal.sync()
-            assert.deepStrictEqual(values, [{ path: ['a'], value: 3 }] as ConfigurationUpdate[])
+            assert.deepStrictEqual(values, [{ path: ['a'], value: 3 }] as SettingsUpdate[])
         })
     })
 

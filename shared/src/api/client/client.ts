@@ -1,21 +1,9 @@
 import { BehaviorSubject, Observable, Unsubscribable } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
-import { ConfigurationUpdateParams, MessageActionItem, ShowInputParams, ShowMessageRequestParams } from '../protocol'
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { createExtensionHostClientConnection, ExtensionHostClientConnection } from './connection'
 import { Environment } from './environment'
 import { Services } from './services'
-
-interface PromiseCallback<T> {
-    resolve: (p: T | Promise<T>) => void
-}
-
-// TODO!(sqs): unexport some of these (maybe by moving to other files)
-export type ShowMessageRequest = ShowMessageRequestParams & PromiseCallback<MessageActionItem | null>
-
-export type ShowInputRequest = ShowInputParams & PromiseCallback<string | null>
-
-export type ConfigurationUpdate = ConfigurationUpdateParams & PromiseCallback<void>
 
 export interface ExtensionHostClient extends Unsubscribable {
     /**

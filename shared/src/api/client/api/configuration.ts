@@ -2,12 +2,13 @@ import { Observable, Subscription } from 'rxjs'
 import { SettingsCascade } from '../../../settings/settings'
 import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtConfigurationAPI } from '../../extension/api/configuration'
-import { ConfigurationUpdateParams } from '../../protocol'
 import { Connection, ConnectionError, ConnectionErrors } from '../../protocol/jsonrpc2/connection'
+import { SettingsUpdate } from '../services/settings'
 
 /** @internal */
+// TODO!(sqs): rename to settings
 export interface ClientConfigurationAPI {
-    $acceptConfigurationUpdate(params: ConfigurationUpdateParams): Promise<void>
+    $acceptConfigurationUpdate(params: SettingsUpdate): Promise<void>
 }
 
 /**
@@ -21,7 +22,7 @@ export class ClientConfiguration<C> implements ClientConfigurationAPI {
     constructor(
         connection: Connection,
         environmentConfiguration: Observable<SettingsCascade<C>>,
-        private updateConfiguration: (params: ConfigurationUpdateParams) => Promise<void>
+        private updateConfiguration: (params: SettingsUpdate) => Promise<void>
     ) {
         this.proxy = createProxyAndHandleRequests('configuration', connection, this)
 
@@ -39,7 +40,7 @@ export class ClientConfiguration<C> implements ClientConfigurationAPI {
         )
     }
 
-    public async $acceptConfigurationUpdate(params: ConfigurationUpdateParams): Promise<void> {
+    public async $acceptConfigurationUpdate(params: SettingsUpdate): Promise<void> {
         await this.updateConfiguration(params)
     }
 

@@ -5,8 +5,9 @@ import { Environment } from '../api/client/environment'
 import { Services } from '../api/client/services'
 import { ExecuteCommandParams } from '../api/client/services/command'
 import { ContributionRegistry } from '../api/client/services/contribution'
+import { MessageType } from '../api/client/services/notifications'
 import { InitData } from '../api/extension/extensionHost'
-import { Contributions, MessageType } from '../api/protocol'
+import { Contributions } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
 import { registerBuiltinClientCommands, updateConfiguration } from '../commands/commands'
 import { Notification } from '../notifications/notification'
@@ -141,7 +142,7 @@ export function createController(
         )
     )
     subscriptions.add(
-        services.configurationUpdates
+        services.settings.updates
             .pipe(
                 mergeMap(params => {
                     const update = updateConfiguration(context, params)

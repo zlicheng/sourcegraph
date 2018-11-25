@@ -1,13 +1,6 @@
 import { BehaviorSubject, Subscription } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
 import { ContextValues } from 'sourcegraph'
-import {
-    ConfigurationUpdateParams,
-    MessageActionItem,
-    ShowInputParams,
-    ShowMessageParams,
-    ShowMessageRequestParams,
-} from '../protocol'
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { Tracer } from '../protocol/jsonrpc2/trace'
 import { ClientCodeEditor } from './api/codeEditor'
@@ -24,6 +17,13 @@ import { ClientWindows } from './api/windows'
 import { applyContextUpdate } from './context/context'
 import { Environment } from './environment'
 import { Services } from './services'
+import {
+    MessageActionItem,
+    ShowInputParams,
+    ShowMessageParams,
+    ShowMessageRequestParams,
+} from './services/notifications'
+import { SettingsUpdate } from './services/settings'
 
 export interface ExtensionHostClientConnection {
     /**
@@ -69,8 +69,8 @@ export function createExtensionHostClientConnection(
                 map(({ configuration }) => configuration),
                 distinctUntilChanged()
             ),
-            (params: ConfigurationUpdateParams) =>
-                new Promise<void>(resolve => services.configurationUpdates.next({ ...params, resolve }))
+            (params: SettingsUpdate) =>
+                new Promise<void>(resolve => services.settings.updates.next({ ...params, resolve }))
         )
     )
     subscription.add(

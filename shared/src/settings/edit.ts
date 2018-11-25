@@ -1,13 +1,13 @@
 import { from } from 'rxjs'
 import { map, switchMap, take } from 'rxjs/operators'
-import { ConfigurationUpdateParams } from '../api/protocol'
+import { SettingsUpdate } from '../api/client/services/settings'
 import { dataOrThrowErrors, gql, graphQLContent } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { PlatformContext } from '../platform/context'
 import { isErrorLike } from '../util/errors'
 
 export type UpdateExtensionSettingsArgs =
-    | { edit?: ConfigurationUpdateParams }
+    | { edit?: SettingsUpdate }
     | {
           extensionID: string
           // TODO: unclean api, allows 4 states (2 bools), but only 3 are valid (none/disabled/enabled)

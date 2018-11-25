@@ -1,8 +1,8 @@
 import assert from 'assert'
 import { map } from 'rxjs/operators'
 import { Window } from 'sourcegraph'
+import { MessageType } from '../client/services/notifications'
 import { assertToJSON } from '../extension/types/common.test'
-import { MessageType } from '../protocol'
 import { collectSubscribableValues, integrationTestContext } from './helpers.test'
 
 describe('Windows (integration)', () => {

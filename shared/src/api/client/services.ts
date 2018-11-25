@@ -1,5 +1,4 @@
-import { Observable, Subject } from 'rxjs'
-import { ConfigurationUpdate } from './client'
+import { Observable } from 'rxjs'
 import { Environment } from './environment'
 import { CommandRegistry } from './services/command'
 import { ContributionRegistry } from './services/contribution'
@@ -9,6 +8,7 @@ import { TextDocumentHoverProviderRegistry } from './services/hover'
 import { TextDocumentLocationProviderRegistry, TextDocumentReferencesProviderRegistry } from './services/location'
 import { NotificationsService } from './services/notifications'
 import { QueryTransformerRegistry } from './services/queryTransformer'
+import { SettingsService } from './services/settings'
 import { ViewProviderRegistry } from './services/view'
 
 /**
@@ -21,6 +21,7 @@ export class Services {
     public readonly contribution = new ContributionRegistry(this.environment)
     public readonly extensions = new ExtensionRegistry(this.environment)
     public readonly notifications = new NotificationsService()
+    public readonly settings = new SettingsService()
     public readonly textDocumentDefinition = new TextDocumentLocationProviderRegistry()
     public readonly textDocumentImplementation = new TextDocumentLocationProviderRegistry()
     public readonly textDocumentReferences = new TextDocumentReferencesProviderRegistry()
@@ -29,7 +30,4 @@ export class Services {
     public readonly textDocumentDecoration = new TextDocumentDecorationProviderRegistry()
     public readonly queryTransformer = new QueryTransformerRegistry()
     public readonly views = new ViewProviderRegistry()
-
-    /** Configuration updates from extensions. */
-    public readonly configurationUpdates = new Subject<ConfigurationUpdate>()
 }
