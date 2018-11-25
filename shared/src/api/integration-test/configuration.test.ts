@@ -48,7 +48,7 @@ describe('Configuration (integration)', () => {
 
             environment.next({
                 ...environment.value,
-                configuration: { final: { a: 3 } },
+                configuration: { final: { a: 3 }, subjects: [] },
             })
             await extensionHost.internal.sync()
             assert.strictEqual(calls, 2)

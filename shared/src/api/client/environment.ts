@@ -1,5 +1,5 @@
 import { ConfiguredExtension } from '../../extensions/extension'
-import { SettingsCascade } from '../protocol'
+import { SettingsCascade } from '../../settings/settings'
 import { WorkspaceRoot } from '../protocol/plainTypes'
 import { Context, EMPTY_CONTEXT } from './context/context'
 import { TextDocumentItem } from './types/textDocument'
@@ -11,12 +11,8 @@ import { TextDocumentItem } from './types/textDocument'
  * in documents, and support extension configuration.
  *
  * @template X the extension type, to support storing additional properties on extensions (e.g., using {@link ConfiguredRegistryExtension})
- * @template C settings cascade type
  */
-export interface Environment<
-    X extends ConfiguredExtension = ConfiguredExtension,
-    C extends SettingsCascade = SettingsCascade
-> {
+export interface Environment<X extends ConfiguredExtension = ConfiguredExtension> {
     /**
      * The currently open workspace roots (typically a single repository).
      */
@@ -32,17 +28,17 @@ export interface Environment<
     readonly extensions: X[] | null
 
     /** The settings cascade. */
-    readonly configuration: C
+    readonly configuration: SettingsCascade
 
     /** Arbitrary key-value pairs that describe other application state. */
     readonly context: Context
 }
 
 /** An empty Sourcegraph extension client environment. */
-export const EMPTY_ENVIRONMENT: Environment<any, any> = {
+export const EMPTY_ENVIRONMENT: Environment<any> = {
     roots: null,
     visibleTextDocuments: null,
     extensions: null,
-    configuration: { final: {} },
+    configuration: { final: {}, subjects: [] },
     context: EMPTY_CONTEXT,
 }

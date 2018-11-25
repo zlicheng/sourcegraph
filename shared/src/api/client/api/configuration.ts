@@ -1,4 +1,5 @@
 import { Observable, Subscription } from 'rxjs'
+import { SettingsCascade } from '../../../settings/settings'
 import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtConfigurationAPI } from '../../extension/api/configuration'
 import { ConfigurationUpdateParams } from '../../protocol'
@@ -19,7 +20,7 @@ export class ClientConfiguration<C> implements ClientConfigurationAPI {
 
     constructor(
         connection: Connection,
-        environmentConfiguration: Observable<C>,
+        environmentConfiguration: Observable<SettingsCascade<C>>,
         private updateConfiguration: (params: ConfigurationUpdateParams) => Promise<void>
     ) {
         this.proxy = createProxyAndHandleRequests('configuration', connection, this)

@@ -16,7 +16,7 @@ describe('activeExtensions', () => {
             expectObservable(
                 new ExtensionRegistry(
                     cold<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>('-a-|', {
-                        a: { configuration: { final: {} }, extensions: [], visibleTextDocuments: [] },
+                        a: { configuration: { final: {}, subjects: [] }, extensions: [], visibleTextDocuments: [] },
                     }),
                     noopExtensionActivationFilter
                 ).activeExtensions
@@ -31,19 +31,21 @@ describe('activeExtensions', () => {
                 new ExtensionRegistry(
                     cold<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>('-a-b-|', {
                         a: {
-                            configuration: { final: { extensions: { x: true } } },
+                            configuration: { final: { extensions: { x: true } }, subjects: [] },
                             extensions: [{ id: 'x', manifest: { url: 'u', activationEvents: [] }, rawManifest: null }],
                             visibleTextDocuments: [],
                         },
                         b: {
-                            configuration: { final: { extensions: {} } },
+                            configuration: { final: {}, subjects: [] },
                             extensions: [{ id: 'x', manifest: { url: 'u', activationEvents: [] }, rawManifest: null }],
                             visibleTextDocuments: [],
                         },
                     }),
                     environment =>
                         (environment.extensions || []).filter(
-                            x => environment.configuration.final.extensions[x.id] === true
+                            x =>
+                                environment.configuration.final.extensions &&
+                                environment.configuration.final.extensions[x.id]
                         )
                 ).activeExtensions
             ).toBe('-a-b-|', {

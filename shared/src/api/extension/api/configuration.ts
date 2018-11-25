@@ -1,7 +1,7 @@
 import { BehaviorSubject } from 'rxjs'
 import * as sourcegraph from 'sourcegraph'
+import { SettingsCascade } from '../../../settings/settings'
 import { ClientConfigurationAPI } from '../../client/api/configuration'
-import { SettingsCascade } from '../../protocol'
 
 /**
  * @internal
@@ -35,31 +35,31 @@ class ExtConfigurationSection<C extends object> implements sourcegraph.Configura
  * @template C - The configuration schema.
  */
 export interface ExtConfigurationAPI<C> {
-    $acceptConfigurationData(data: Readonly<C>): Promise<void>
+    $acceptConfigurationData(data: Readonly<SettingsCascade<C>>): Promise<void>
 }
 
 /**
  * @internal
  * @template C - The configuration schema.
  */
-export class ExtConfiguration<C extends SettingsCascade<any>> implements ExtConfigurationAPI<C> {
+export class ExtConfiguration<C extends object> implements ExtConfigurationAPI<C> {
     /**
      * The settings data observable, assigned when the initial data is received from the client. Extensions should
      * never be able to call {@link ExtConfiguration}'s methods before the initial data is received.
      */
-    private data?: BehaviorSubject<Readonly<C>>
+    private data?: BehaviorSubject<Readonly<SettingsCascade<C>>>
 
     constructor(private proxy: ClientConfigurationAPI) {}
 
-    public async $acceptConfigurationData(data: Readonly<C>): Promise<void> {
+    public async $acceptConfigurationData(data: Readonly<SettingsCascade<C>>): Promise<void> {
         if (!this.data) {
-            this.data = new BehaviorSubject<Readonly<C>>(data)
+            this.data = new BehaviorSubject(data)
         } else {
             this.data.next(Object.freeze(data))
         }
     }
 
-    private getData(): BehaviorSubject<Readonly<C>> {
+    private getData(): BehaviorSubject<Readonly<SettingsCascade<C>>> {
         if (!this.data) {
             throw new Error('unexpected internal error: settings data is not yet available')
         }

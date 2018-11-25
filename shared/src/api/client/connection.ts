@@ -63,7 +63,7 @@ export function createExtensionHostClientConnection(
     connection.onRequest('ping', () => 'pong')
 
     subscription.add(
-        new ClientConfiguration(
+        new ClientConfiguration<any>(
             connection,
             environment.pipe(
                 map(({ configuration }) => configuration),
