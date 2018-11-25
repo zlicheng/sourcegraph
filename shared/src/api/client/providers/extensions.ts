@@ -1,64 +1,69 @@
 import { Observable } from 'rxjs'
 import { map, tap } from 'rxjs/operators'
-import { isExtensionEnabled } from '../../../extensions/extension'
+import { getScriptURLFromExtensionManifest, isExtensionEnabled } from '../../../extensions/extension'
 import { isErrorLike } from '../../../util/errors'
 import { Environment } from '../environment'
 import { Extension } from '../extension'
 
 /**
- * Returns an observable that emits the set of extensions that should be active, based on the current state and
- * each available extension's activationEvents. If an extension should be active and is not yet active, it should
- * be activated.
- *
- * An extension is activated when one or more of its activationEvents is true. After an extension has been
- * activated, it remains active for the rest of the session (i.e., for as long as the browser tab remains open).
+ * The information about an extension necessary to execute and activate it.
+ */
+export interface ExecutableExtension extends Pick<Extension, 'id'> {
+    /** The URL to the JavaScript bundle of the extension. */
+    scriptURL: string
+}
+
+/**
+ * Manages the set of extensions that are available and activated.
  *
  * @internal This is an internal implementation detail and is different from the product feature called the
  * "extension registry" (where users can search for and enable extensions).
- *
- * @todo Consider whether extensions should be deactivated if none of their activationEvents are true (or that plus
- * a certain period of inactivity).
- *
- * @param environment An observable that emits when the environment changes.
- * @param extensionActivationFilter A function that returns the set of extensions that should be activated based on
- * the current environment only. It does not need to account for remembering which extensions were previously
- * activated in prior states.
  */
 export class ExtensionRegistry {
+    public constructor(
+        private environment: Observable<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>,
+        private extensionActivationFilter = extensionsWithMatchedActivationEvent
+    ) {}
+
     /**
-     * Returns an observable that emits the set of extensions that should be active, based on the current state and
-     * each available extension's activationEvents. If an extension should be active and is not yet active, it should
-     * be activated.
+     * Returns an observable that emits the set of extensions that should be active, based on the previous and
+     * current state and each available extension's activationEvents.
      *
      * An extension is activated when one or more of its activationEvents is true. After an extension has been
-     * activated, it remains active for the rest of the session (i.e., for as long as the browser tab remains open).
+     * activated, it remains active for the rest of the session (i.e., for as long as the browser tab remains
+     * open).
      *
-     * @internal This is an internal implementation detail and is different from the product feature called the
-     * "extension registry" (where users can search for and enable extensions).
+     * @todo Consider whether extensions should be deactivated if none of their activationEvents are true (or that
+     * plus a certain period of inactivity).
      *
-     * @todo Consider whether extensions should be deactivated if none of their activationEvents are true (or that plus
-     * a certain period of inactivity).
-     *
-     * @param environment An observable that emits when the environment changes.
-     * @param extensionActivationFilter A function that returns the set of extensions that should be activated based on
-     * the current environment only. It does not need to account for remembering which extensions were previously
-     * activated in prior states.
+     * @param extensionActivationFilter A function that returns the set of extensions that should be activated
+     * based on the current environment only. It does not need to account for remembering which extensions were
+     * previously activated in prior states.
      */
-    public activeExtensions(
-        environment: Observable<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>,
-        extensionActivationFilter = extensionsWithMatchedActivationEvent
-    ): Observable<Extension[]> {
+    public get activeExtensions(): Observable<ExecutableExtension[]> {
         const activeExtensionIDs: string[] = []
-        return environment.pipe(
+        return this.environment.pipe(
             tap(environment => {
-                const activeExtensions = extensionActivationFilter(environment)
+                const activeExtensions = this.extensionActivationFilter(environment)
                 for (const x of activeExtensions) {
                     if (!activeExtensionIDs.includes(x.id)) {
                         activeExtensionIDs.push(x.id)
                     }
                 }
             }),
-            map(({ extensions }) => (extensions ? extensions.filter(x => activeExtensionIDs.includes(x.id)) : []))
+            map(({ extensions }) => (extensions ? extensions.filter(x => activeExtensionIDs.includes(x.id)) : [])),
+            // TODO!(sqs): memoize getScriptURLForExtension
+            /** Run {@link ControllerHelpers.getScriptURLForExtension} last because it is nondeterministic. */
+            map(extensions =>
+                extensions.map(x => ({
+                    id: x.id,
+                    // TODO!(sqs): log errors but do not throw here
+                    //
+                    // TODO!(sqs): also apply
+                    // PlatformContext.getScriptURLForExtension here for browser ext
+                    scriptURL: getScriptURLFromExtensionManifest(x),
+                }))
+            )
         )
     }
 }

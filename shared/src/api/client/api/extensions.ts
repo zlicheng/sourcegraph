@@ -1,18 +1,10 @@
-import { Observable, Subscription } from 'rxjs'
+import { Subscription } from 'rxjs'
 import { bufferCount, distinctUntilChanged, startWith } from 'rxjs/operators'
 import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtExtensionsAPI } from '../../extension/api/extensions'
 import { Connection } from '../../protocol/jsonrpc2/connection'
 import { isEqual } from '../../util'
-import { Extension } from '../extension'
-
-/**
- * The information about an extension necessary to activate it.
- */
-interface ExtensionToActivate extends Pick<Extension, 'id'> {
-    /** The URL to the JavaScript bundle of the extension. */
-    scriptURL: string
-}
+import { ExecutableExtension, ExtensionRegistry } from '../providers/extensions'
 
 /** @internal */
 export class ClientExtensions {
@@ -26,21 +18,21 @@ export class ClientExtensions {
      * @param extensions An observable that emits the set of extensions that should be activated
      * upon subscription and whenever it changes.
      */
-    constructor(connection: Connection, activeExtensions: Observable<ExtensionToActivate[] | null>) {
+    constructor(connection: Connection, extensionRegistry: ExtensionRegistry) {
         this.proxy = createProxyAndHandleRequests('extensions', connection, this)
 
         this.subscriptions.add(
-            activeExtensions
+            extensionRegistry.activeExtensions
                 .pipe(
-                    startWith([]),
+                    startWith([] as ExecutableExtension[]),
                     distinctUntilChanged(),
                     bufferCount(2)
                 )
                 .subscribe(([oldExtensions, newExtensions]) => {
                     // Diff next state's activated extensions vs. current state's.
-                    const toActivate = newExtensions || []
-                    const toDeactivate: ExtensionToActivate[] = []
-                    const next: ExtensionToActivate[] = []
+                    const toActivate = newExtensions
+                    const toDeactivate: ExecutableExtension[] = []
+                    const next: ExecutableExtension[] = []
                     if (oldExtensions) {
                         for (const x of oldExtensions) {
                             const newIndex = toActivate.findIndex(({ id }) => isEqual(x.id, id))

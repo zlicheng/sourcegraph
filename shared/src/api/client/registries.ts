@@ -3,6 +3,7 @@ import { Environment } from './environment'
 import { CommandRegistry } from './providers/command'
 import { ContributionRegistry } from './providers/contribution'
 import { TextDocumentDecorationProviderRegistry } from './providers/decoration'
+import { ExtensionRegistry } from './providers/extensions'
 import { TextDocumentHoverProviderRegistry } from './providers/hover'
 import { TextDocumentLocationProviderRegistry, TextDocumentReferencesProviderRegistry } from './providers/location'
 import { QueryTransformerRegistry } from './providers/queryTransformer'
@@ -16,6 +17,7 @@ export class Registries {
 
     public readonly commands = new CommandRegistry()
     public readonly contribution = new ContributionRegistry(this.environment)
+    public readonly extensions = new ExtensionRegistry(this.environment)
     public readonly textDocumentDefinition = new TextDocumentLocationProviderRegistry()
     public readonly textDocumentImplementation = new TextDocumentLocationProviderRegistry()
     public readonly textDocumentReferences = new TextDocumentReferencesProviderRegistry()
