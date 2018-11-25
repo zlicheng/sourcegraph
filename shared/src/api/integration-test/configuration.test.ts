@@ -21,10 +21,10 @@ describe('Configuration (integration)', () => {
 
     describe('Configuration#update', () => {
         it('updates configuration', async () => {
-            const { client, extensionHost } = await integrationTestContext()
+            const { extensionHost, registries } = await integrationTestContext()
 
             const values = collectSubscribableValues(
-                client.configurationUpdates.pipe(map(({ path, value }) => ({ path, value })))
+                registries.configurationUpdates.pipe(map(({ path, value }) => ({ path, value })))
             )
 
             await extensionHost.configuration.get().update('a', 2)

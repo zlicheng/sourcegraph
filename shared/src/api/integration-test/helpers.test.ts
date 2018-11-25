@@ -63,7 +63,7 @@ export async function integrationTestContext(): Promise<
     )
 
     // Ack all configuration updates.
-    client.configurationUpdates.subscribe(({ resolve }) => resolve(Promise.resolve()))
+    registries.configurationUpdates.subscribe(({ resolve }) => resolve(Promise.resolve()))
 
     await (await extensionHost.__testAPI).internal.sync()
 

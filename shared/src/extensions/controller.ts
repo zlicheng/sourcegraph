@@ -1,7 +1,7 @@
 import { BehaviorSubject, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
 import { filter, map, mergeMap, share, switchMap } from 'rxjs/operators'
 import { createExtensionHostClient } from '../api/client/client'
-import { EMPTY_ENVIRONMENT, Environment } from '../api/client/environment'
+import { Environment } from '../api/client/environment'
 import { ExecuteCommandParams } from '../api/client/providers/command'
 import { ContributionRegistry } from '../api/client/providers/contribution'
 import { Registries } from '../api/client/registries'
@@ -68,8 +68,12 @@ export interface ExtensionsControllerProps {
  *
  * TODO!(sqs): move environment out of here
  */
-export function createController(context: PlatformContext, environment: BehaviorSubject<Environment>): Controller {
+export function createController(
+    context: PlatformContext,
+    environment: BehaviorSubject<Environment<ConfiguredExtension>>
+): Controller {
     const subscriptions = new Subscription()
+
     const registries = new Registries(environment)
     const extensionHostConnection = context.createExtensionHost().pipe(
         switchMap(async messageTransports => {
@@ -108,13 +112,13 @@ export function createController(context: PlatformContext, environment: Behavior
     subscriptions.add(registerExtensionContributions(registries.contribution, environment))
 
     // Show messages (that don't need user input) as global notifications.
-    subscriptions.add(client.showMessages.subscribe(({ message, type }) => notifications.next({ message, type })))
+    subscriptions.add(registries.showMessages.subscribe(({ message, type }) => notifications.next({ message, type })))
 
     function messageFromExtension(message: string): string {
         return `From extension:\n\n${message}`
     }
     subscriptions.add(
-        client.showMessageRequests.subscribe(({ message, actions, resolve }) => {
+        registries.showMessageRequests.subscribe(({ message, actions, resolve }) => {
             if (!actions || actions.length === 0) {
                 alert(messageFromExtension(message))
                 resolve(null)
@@ -130,12 +134,12 @@ export function createController(context: PlatformContext, environment: Behavior
         })
     )
     subscriptions.add(
-        client.showInputs.subscribe(({ message, defaultValue, resolve }) =>
+        registries.showInputs.subscribe(({ message, defaultValue, resolve }) =>
             resolve(prompt(messageFromExtension(message), defaultValue))
         )
     )
     subscriptions.add(
-        client.configurationUpdates
+        registries.configurationUpdates
             .pipe(
                 mergeMap(params => {
                     const update = updateConfiguration(context, params)
@@ -148,7 +152,7 @@ export function createController(context: PlatformContext, environment: Behavior
 
     // Print window/logMessage log messages to the browser devtools console.
     subscriptions.add(
-        client.logMessages.subscribe(({ message }) => {
+        registries.logMessages.subscribe(({ message }) => {
             log('info', 'EXT', message)
         })
     )
@@ -184,7 +188,7 @@ export function createController(context: PlatformContext, environment: Behavior
 
 function registerExtensionContributions(
     contributionRegistry: ContributionRegistry,
-    environment: Observable<Environment>
+    environment: Observable<Environment<ConfiguredExtension>>
 ): Unsubscribable {
     const contributions = environment.pipe(
         map(({ extensions }) => extensions),

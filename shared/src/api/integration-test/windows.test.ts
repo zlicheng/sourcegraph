@@ -59,28 +59,28 @@ describe('Windows (integration)', () => {
 
     describe('Window', () => {
         it('Window#showNotification', async () => {
-            const { client, extensionHost } = await integrationTestContext()
-            const values = collectSubscribableValues(client.showMessages)
+            const { extensionHost, registries } = await integrationTestContext()
+            const values = collectSubscribableValues(registries.showMessages)
             extensionHost.app.activeWindow!.showNotification('a') // tslint:disable-line deprecation
             await extensionHost.internal.sync()
             assert.deepStrictEqual(values, [{ message: 'a', type: MessageType.Info }] as typeof values)
         })
 
         it('Window#showMessage', async () => {
-            const { client, extensionHost } = await integrationTestContext()
-            client.showMessageRequests.subscribe(({ resolve }) => resolve(Promise.resolve(null)))
+            const { extensionHost, registries } = await integrationTestContext()
+            registries.showMessageRequests.subscribe(({ resolve }) => resolve(Promise.resolve(null)))
             const values = collectSubscribableValues(
-                client.showMessageRequests.pipe(map(({ message, type }) => ({ message, type })))
+                registries.showMessageRequests.pipe(map(({ message, type }) => ({ message, type })))
             )
             assert.strictEqual(await extensionHost.app.activeWindow!.showMessage('a'), null)
             assert.deepStrictEqual(values, [{ message: 'a', type: MessageType.Info }] as typeof values)
         })
 
         it('Window#showInputBox', async () => {
-            const { client, extensionHost } = await integrationTestContext()
-            client.showInputs.subscribe(({ resolve }) => resolve(Promise.resolve('c')))
+            const { extensionHost, registries } = await integrationTestContext()
+            registries.showInputs.subscribe(({ resolve }) => resolve(Promise.resolve('c')))
             const values = collectSubscribableValues(
-                client.showInputs.pipe(map(({ message, defaultValue }) => ({ message, defaultValue })))
+                registries.showInputs.pipe(map(({ message, defaultValue }) => ({ message, defaultValue })))
             )
             assert.strictEqual(await extensionHost.app.activeWindow!.showInputBox({ prompt: 'a', value: 'b' }), 'c')
             assert.deepStrictEqual(values, [{ message: 'a', defaultValue: 'b' }] as typeof values)
