@@ -213,8 +213,12 @@ export function merge(base: any, add: any, custom?: CustomMergeFunctions): void 
  * Reports whether the settings cascade is valid (i.e., is non-empty and doesn't have any errors).
  *
  * @todo Display the errors to the user in another component.
+ *
+ * @template S the settings type
  */
-export function isSettingsValid(settingsCascade: SettingsCascadeOrError): settingsCascade is SettingsCascade {
+export function isSettingsValid<S extends Settings>(
+    settingsCascade: SettingsCascadeOrError<S>
+): settingsCascade is SettingsCascade<S> {
     return (
         settingsCascade.subjects !== null &&
         !isErrorLike(settingsCascade.subjects) &&

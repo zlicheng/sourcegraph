@@ -1,6 +1,7 @@
 import assert from 'assert'
 import { TestScheduler } from 'rxjs/testing'
 import { ConfiguredExtension } from '../../../extensions/extension'
+import { isErrorLike } from '../../../util/errors'
 import { Environment } from '../environment'
 import { ExecutableExtension, ExtensionRegistry } from './extensions'
 
@@ -44,6 +45,8 @@ describe('activeExtensions', () => {
                     environment =>
                         (environment.extensions || []).filter(
                             x =>
+                                environment.configuration.final &&
+                                !isErrorLike(environment.configuration.final) &&
                                 environment.configuration.final.extensions &&
                                 environment.configuration.final.extensions[x.id]
                         )

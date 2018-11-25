@@ -1,8 +1,9 @@
 import { Observable, Subscription } from 'rxjs'
-import { SettingsCascade } from '../../../settings/settings'
+import { switchMap } from 'rxjs/operators'
+import { isSettingsValid, SettingsCascadeOrError } from '../../../settings/settings'
 import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtConfigurationAPI } from '../../extension/api/configuration'
-import { Connection, ConnectionError, ConnectionErrors } from '../../protocol/jsonrpc2/connection'
+import { Connection } from '../../protocol/jsonrpc2/connection'
 import { SettingsUpdate } from '../services/settings'
 
 /** @internal */
@@ -21,22 +22,26 @@ export class ClientConfiguration<C> implements ClientConfigurationAPI {
 
     constructor(
         connection: Connection,
-        environmentConfiguration: Observable<SettingsCascade<C>>,
+        environmentConfiguration: Observable<SettingsCascadeOrError<C>>,
         private updateConfiguration: (params: SettingsUpdate) => Promise<void>
     ) {
         this.proxy = createProxyAndHandleRequests('configuration', connection, this)
 
         this.subscriptions.add(
-            environmentConfiguration.subscribe(config => {
-                this.proxy.$acceptConfigurationData(config).catch(error => {
-                    if (error instanceof ConnectionError && error.code === ConnectionErrors.Unsubscribed) {
-                        // This error was probably caused by the user disabling
-                        // an extension, which is a normal occurrence.
-                        return
-                    }
-                    throw error
-                })
-            })
+            environmentConfiguration
+                .pipe(
+                    switchMap(settings => {
+                        // Only send valid settings.
+                        //
+                        // TODO(sqs): This could cause problems where the settings seen by extensions will lag behind
+                        // settings seen by the client.
+                        if (isSettingsValid(settings)) {
+                            return this.proxy.$acceptConfigurationData(settings)
+                        }
+                        return []
+                    })
+                )
+                .subscribe()
         )
     }
 

@@ -3,8 +3,6 @@ import * as H from 'history'
 import * as React from 'react'
 import { Subject, Subscription } from 'rxjs'
 import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
-import { ActivatedExtension } from '../api/client/client'
-import { BrowserConsoleTracer } from '../api/protocol/jsonrpc2/trace'
 import { PopoverButton } from '../components/PopoverButton'
 import { Toggle } from '../components/Toggle'
 import { ExtensionsControllerProps } from '../extensions/controller'
@@ -14,8 +12,8 @@ interface Props extends ExtensionsControllerProps {
 }
 
 interface State {
-    /** The extension clients, or undefined while loading. */
-    extensions?: ActivatedExtension[]
+    /** The extension IDs of extensions that are active, or undefined while loading. */
+    extensions?: { id: string }[]
 
     /** Whether to log traces of communication with extensions. */
     trace?: boolean
@@ -38,7 +36,7 @@ export class ExtensionStatus extends React.PureComponent<Props, State> {
         this.subscriptions.add(
             extensionsController
                 .pipe(
-                    switchMap(extensionsController => extensionsController.clientEntries),
+                    switchMap(extensionsController => extensionsController.services.extensions.activeExtensions),
                     map(extensions => ({ extensions }))
                 )
                 .subscribe(stateUpdate => this.setState(stateUpdate), err => console.error(err))
@@ -62,12 +60,12 @@ export class ExtensionStatus extends React.PureComponent<Props, State> {
                 {this.state.extensions ? (
                     this.state.extensions.length > 0 ? (
                         <div className="list-group list-group-flush">
-                            {this.state.extensions.map(({ key }, i) => (
+                            {this.state.extensions.map(({ id }, i) => (
                                 <div
                                     key={i}
                                     className="list-group-item py-2 d-flex align-items-center justify-content-between"
                                 >
-                                    <this.props.link id={key.id} />
+                                    <this.props.link id={id} />
                                 </div>
                             ))}
                         </div>
@@ -104,14 +102,8 @@ export class ExtensionStatus extends React.PureComponent<Props, State> {
                     localStorage.removeItem(ExtensionStatus.TRACE_STORAGE_KEY)
                 }
 
-                // Update trace setting for all existing connections.
-                if (this.state.extensions) {
-                    for (const e of this.state.extensions) {
-                        e.connection
-                            .then(c => c.trace(this.state.trace ? new BrowserConsoleTracer(e.key.id) : null))
-                            .catch(err => console.error(err))
-                    }
-                }
+                // TODO!(sqs): set trace
+                // this.props.extensionsController.setTrace(...)
             }
         )
     }

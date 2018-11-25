@@ -1,5 +1,5 @@
 import { ConfiguredExtension } from '../../extensions/extension'
-import { SettingsCascade } from '../../settings/settings'
+import { SettingsCascadeOrError } from '../../settings/settings'
 import { WorkspaceRoot } from '../protocol/plainTypes'
 import { Context, EMPTY_CONTEXT } from './context/context'
 import { TextDocumentItem } from './types/textDocument'
@@ -28,7 +28,7 @@ export interface Environment<X extends ConfiguredExtension = ConfiguredExtension
     readonly extensions: X[] | null
 
     /** The settings cascade. */
-    readonly configuration: SettingsCascade
+    readonly configuration: SettingsCascadeOrError
 
     /** Arbitrary key-value pairs that describe other application state. */
     readonly context: Context

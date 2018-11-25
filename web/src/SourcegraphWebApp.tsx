@@ -14,7 +14,7 @@ import {
     ExtensionsControllerProps,
 } from '../../shared/src/extensions/controller'
 import { ConfiguredRegistryExtension } from '../../shared/src/extensions/extension'
-import { viewerConfiguredRegistryExtensions } from '../../shared/src/extensions/helpers'
+import { viewerConfiguredExtensions } from '../../shared/src/extensions/helpers'
 import * as GQL from '../../shared/src/graphql/schema'
 import { Notifications } from '../../shared/src/notifications/Notifications'
 import { PlatformContextProps } from '../../shared/src/platform/context'
@@ -183,7 +183,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         //
         // TODO(sqs): handle loading and errors
         this.subscriptions.add(
-            viewerConfiguredRegistryExtensions(this.state.platformContext).subscribe(
+            viewerConfiguredExtensions(this.state.platformContext).subscribe(
                 extensions => this.onViewerConfiguredRegistryExtensionsChange(extensions),
                 err => console.error(err)
             )
