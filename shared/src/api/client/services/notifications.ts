@@ -5,28 +5,26 @@ interface PromiseCallback<T> {
 }
 
 /**
- * The message type
+ * The type of a message.
  */
-export namespace MessageType {
+export enum MessageType {
     /**
      * An error message.
      */
-    export const Error = 1
+    Error,
     /**
      * A warning message.
      */
-    export const Warning = 2
+    Warning,
     /**
      * An information message.
      */
-    export const Info = 3
+    Info,
     /**
      * A log message.
      */
-    export const Log = 4
+    Log,
 }
-
-export type MessageType = 1 | 2 | 3 | 4
 
 /**
  * The parameters of a notification message.
@@ -79,7 +77,7 @@ export interface ShowInputParams {
 /**
  * The log message parameters.
  */
-export interface LogMessageParams {
+interface LogMessageParams {
     /**
      * The message type. See {@link MessageType}
      */
@@ -91,10 +89,9 @@ export interface LogMessageParams {
     message: string
 }
 
-// TODO!(sqs): unexport some of these (maybe by moving to other files)
-export type ShowMessageRequest = ShowMessageRequestParams & PromiseCallback<MessageActionItem | null>
+type ShowMessageRequest = ShowMessageRequestParams & PromiseCallback<MessageActionItem | null>
 
-export type ShowInputRequest = ShowInputParams & PromiseCallback<string | null>
+type ShowInputRequest = ShowInputParams & PromiseCallback<string | null>
 
 export class NotificationsService {
     /** Log messages from extensions. */
