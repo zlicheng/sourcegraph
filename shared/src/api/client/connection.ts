@@ -91,14 +91,14 @@ export function createExtensionHostClientConnection(
                 map(({ visibleTextDocuments }) => visibleTextDocuments),
                 distinctUntilChanged()
             ),
-            (params: ShowMessageParams) => services.showMessages.next({ ...params }),
+            (params: ShowMessageParams) => services.notifications.showMessages.next({ ...params }),
             (params: ShowMessageRequestParams) =>
                 new Promise<MessageActionItem | null>(resolve => {
-                    services.showMessageRequests.next({ ...params, resolve })
+                    services.notifications.showMessageRequests.next({ ...params, resolve })
                 }),
             (params: ShowInputParams) =>
                 new Promise<string | null>(resolve => {
-                    services.showInputs.next({ ...params, resolve })
+                    services.notifications.showInputs.next({ ...params, resolve })
                 })
         )
     )

@@ -60,7 +60,7 @@ describe('Windows (integration)', () => {
     describe('Window', () => {
         it('Window#showNotification', async () => {
             const { extensionHost, services } = await integrationTestContext()
-            const values = collectSubscribableValues(services.showMessages)
+            const values = collectSubscribableValues(services.notifications.showMessages)
             extensionHost.app.activeWindow!.showNotification('a') // tslint:disable-line deprecation
             await extensionHost.internal.sync()
             assert.deepStrictEqual(values, [{ message: 'a', type: MessageType.Info }] as typeof values)
@@ -68,9 +68,9 @@ describe('Windows (integration)', () => {
 
         it('Window#showMessage', async () => {
             const { extensionHost, services } = await integrationTestContext()
-            services.showMessageRequests.subscribe(({ resolve }) => resolve(Promise.resolve(null)))
+            services.notifications.showMessageRequests.subscribe(({ resolve }) => resolve(Promise.resolve(null)))
             const values = collectSubscribableValues(
-                services.showMessageRequests.pipe(map(({ message, type }) => ({ message, type })))
+                services.notifications.showMessageRequests.pipe(map(({ message, type }) => ({ message, type })))
             )
             assert.strictEqual(await extensionHost.app.activeWindow!.showMessage('a'), null)
             assert.deepStrictEqual(values, [{ message: 'a', type: MessageType.Info }] as typeof values)
@@ -78,9 +78,9 @@ describe('Windows (integration)', () => {
 
         it('Window#showInputBox', async () => {
             const { extensionHost, services } = await integrationTestContext()
-            services.showInputs.subscribe(({ resolve }) => resolve(Promise.resolve('c')))
+            services.notifications.showInputs.subscribe(({ resolve }) => resolve(Promise.resolve('c')))
             const values = collectSubscribableValues(
-                services.showInputs.pipe(map(({ message, defaultValue }) => ({ message, defaultValue })))
+                services.notifications.showInputs.pipe(map(({ message, defaultValue }) => ({ message, defaultValue })))
             )
             assert.strictEqual(await extensionHost.app.activeWindow!.showInputBox({ prompt: 'a', value: 'b' }), 'c')
             assert.deepStrictEqual(values, [{ message: 'a', defaultValue: 'b' }] as typeof values)

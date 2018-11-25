@@ -2,9 +2,9 @@ import { BehaviorSubject, from, Observable, Subject, Subscription, Unsubscribabl
 import { filter, map, mergeMap, share, switchMap } from 'rxjs/operators'
 import { createExtensionHostClient } from '../api/client/client'
 import { Environment } from '../api/client/environment'
+import { Services } from '../api/client/services'
 import { ExecuteCommandParams } from '../api/client/services/command'
 import { ContributionRegistry } from '../api/client/services/contribution'
-import { Services } from '../api/client/services'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions, MessageType } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
@@ -112,13 +112,15 @@ export function createController(
     subscriptions.add(registerExtensionContributions(services.contribution, environment))
 
     // Show messages (that don't need user input) as global notifications.
-    subscriptions.add(services.showMessages.subscribe(({ message, type }) => notifications.next({ message, type })))
+    subscriptions.add(
+        services.notifications.showMessages.subscribe(({ message, type }) => notifications.next({ message, type }))
+    )
 
     function messageFromExtension(message: string): string {
         return `From extension:\n\n${message}`
     }
     subscriptions.add(
-        services.showMessageRequests.subscribe(({ message, actions, resolve }) => {
+        services.notifications.showMessageRequests.subscribe(({ message, actions, resolve }) => {
             if (!actions || actions.length === 0) {
                 alert(messageFromExtension(message))
                 resolve(null)
@@ -134,7 +136,7 @@ export function createController(
         })
     )
     subscriptions.add(
-        services.showInputs.subscribe(({ message, defaultValue, resolve }) =>
+        services.notifications.showInputs.subscribe(({ message, defaultValue, resolve }) =>
             resolve(prompt(messageFromExtension(message), defaultValue))
         )
     )
@@ -152,7 +154,7 @@ export function createController(
 
     // Print window/logMessage log messages to the browser devtools console.
     subscriptions.add(
-        services.logMessages.subscribe(({ message }) => {
+        services.notifications.logMessages.subscribe(({ message }) => {
             log('info', 'EXT', message)
         })
     )
