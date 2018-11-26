@@ -1,5 +1,5 @@
 import { BehaviorSubject, combineLatest, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
-import { filter, map, mergeMap, share, switchMap, tap } from 'rxjs/operators'
+import { distinctUntilChanged, filter, map, mergeMap, share, switchMap, tap } from 'rxjs/operators'
 import { createExtensionHostClient } from '../api/client/client'
 import { Environment } from '../api/client/environment'
 import { Services } from '../api/client/services'
@@ -93,7 +93,8 @@ export function createController(
         context.traceExtensionHostCommunication
     ).pipe(
         tap(([connection, trace]) => connection.trace(trace ? new BrowserConsoleTracer('') : null)),
-        map(([connection]) => connection)
+        map(([connection]) => connection),
+        distinctUntilChanged()
     )
     const client = createExtensionHostClient(environment, services, extensionHostConnection)
     subscriptions.add(client)
