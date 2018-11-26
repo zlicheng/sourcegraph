@@ -10,6 +10,9 @@ import { Contributions } from '../api/protocol/contribution'
  * manually duplicate it for now.
  */
 
+// TODO!2(sqs): rename file to manifest.schema.ts or extensionManifest.schema.ts
+// TODO!2(sqs): remove "args"
+
 export interface ExtensionManifest {
     title?: string
     description?: string

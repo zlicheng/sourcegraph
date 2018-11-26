@@ -22,6 +22,7 @@ describe('getComputedContextProperty', () => {
                     'a.b': 2,
                     'c.d': 3,
                 },
+                subjects: [],
             },
         }
         assert.strictEqual(getComputedContextProperty(env, 'config.a'), 1)

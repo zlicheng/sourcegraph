@@ -2,10 +2,10 @@ import * as assert from 'assert'
 import { Observable, of } from 'rxjs'
 import { Subscription } from 'rxjs'
 import { TestScheduler } from 'rxjs/testing'
-import { ContributableMenu, Contributions, SettingsCascade } from '../../protocol'
+import { ConfiguredExtension } from '../../../extensions/extension'
+import { ContributableMenu, Contributions } from '../../protocol'
 import { EMPTY_COMPUTED_CONTEXT } from '../context/expr/evaluator'
 import { EMPTY_ENVIRONMENT, Environment } from '../environment'
-import { Extension } from '../extension'
 import {
     contextFilter,
     ContributionRegistry,
@@ -48,9 +48,7 @@ const FIXTURE_CONTRIBUTIONS_MERGED: Contributions = {
 }
 
 describe('ContributionRegistry', () => {
-    function create(
-        env: Observable<Environment<Extension, SettingsCascade>> = of(EMPTY_ENVIRONMENT)
-    ): ContributionRegistry {
+    function create(env: Observable<Environment<ConfiguredExtension>> = of(EMPTY_ENVIRONMENT)): ContributionRegistry {
         return new ContributionRegistry(env)
     }
 

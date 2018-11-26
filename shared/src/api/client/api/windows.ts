@@ -2,14 +2,14 @@ import { Observable, Subscription } from 'rxjs'
 import * as sourcegraph from 'sourcegraph'
 import { createProxyAndHandleRequests } from '../../common/proxy'
 import { ExtWindowsAPI } from '../../extension/api/windows'
+import { Connection } from '../../protocol/jsonrpc2/connection'
 import {
     MessageActionItem,
     MessageType,
     ShowInputParams,
     ShowMessageParams,
     ShowMessageRequestParams,
-} from '../../protocol'
-import { Connection } from '../../protocol/jsonrpc2/connection'
+} from '../services/notifications'
 import { TextDocumentItem } from '../types/textDocument'
 import { SubscriptionMap } from './common'
 

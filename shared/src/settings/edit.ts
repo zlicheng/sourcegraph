@@ -1,13 +1,13 @@
 import { from } from 'rxjs'
 import { map, switchMap, take } from 'rxjs/operators'
-import { ConfigurationUpdateParams } from '../api/protocol'
+import { SettingsUpdate } from '../api/client/services/settings'
 import { dataOrThrowErrors, gql, graphQLContent } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { PlatformContext } from '../platform/context'
 import { isErrorLike } from '../util/errors'
 
 export type UpdateExtensionSettingsArgs =
-    | { edit?: ConfigurationUpdateParams }
+    | { edit?: SettingsUpdate }
     | {
           extensionID: string
           // TODO: unclean api, allows 4 states (2 bools), but only 3 are valid (none/disabled/enabled)
@@ -16,7 +16,7 @@ export type UpdateExtensionSettingsArgs =
       }
 
 export function updateSettings(
-    { settingsCascade, queryGraphQL }: Pick<PlatformContext, 'settingsCascade' | 'queryGraphQL'>,
+    { environment, queryGraphQL }: Pick<PlatformContext, 'environment' | 'queryGraphQL'>,
     subject: GQL.ID,
     args: UpdateExtensionSettingsArgs,
     applySettingsEdit: (
@@ -26,9 +26,11 @@ export function updateSettings(
         edit: GQL.ISettingsEdit
     ) => Promise<void>
 ): Promise<void> {
-    return from(settingsCascade)
+    return from(environment)
         .pipe(
             take(1),
+            // TODO!(sqs): rename configuration -> settingsCascade
+            map(({ configuration }) => configuration),
             switchMap(settingsCascade => {
                 if (!settingsCascade.subjects) {
                     throw new Error('settings not available')

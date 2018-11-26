@@ -1,8 +1,11 @@
-import { filter, first } from 'rxjs/operators'
+import { BehaviorSubject, of } from 'rxjs'
+import { switchMap } from 'rxjs/operators'
 import * as sourcegraph from 'sourcegraph'
-import { Controller } from '../client/controller'
+import { createExtensionHostClient, ExtensionHostClient } from '../client/client'
 import { Environment } from '../client/environment'
-import { createExtensionHost } from '../extension/extensionHost'
+import { Services } from '../client/services'
+import { InitData, startExtensionHost } from '../extension/extensionHost'
+import { createConnection } from '../protocol/jsonrpc2/connection'
 import { createMessageTransports } from '../protocol/jsonrpc2/helpers.test'
 
 const FIXTURE_ENVIRONMENT: Environment = {
@@ -14,13 +17,13 @@ const FIXTURE_ENVIRONMENT: Environment = {
             text: 't',
         },
     ],
-    extensions: [{ id: 'x' }],
-    configuration: { final: { a: 1 } },
+    extensions: [{ id: 'x', manifest: null, rawManifest: null }],
+    configuration: { final: { a: 1 }, subjects: [] },
     context: {},
 }
 
 interface TestContext {
-    clientController: Controller<any, any>
+    client: ExtensionHostClient
     extensionHost: typeof sourcegraph
 }
 
@@ -31,67 +34,54 @@ interface TestContext {
  */
 export async function integrationTestContext(): Promise<
     TestContext & {
-        getEnvironment: () => Environment
-        ready: Promise<void>
+        environment: BehaviorSubject<Environment>
+        services: Services
     }
 > {
     const [clientTransports, serverTransports] = createMessageTransports()
 
-    const clientController = new Controller({
-        clientOptions: () => ({ createMessageTransports: () => clientTransports }),
-    })
-    clientController.setEnvironment(FIXTURE_ENVIRONMENT)
+    const extensionHost = startExtensionHost(serverTransports)
 
-    // Ack all configuration updates.
-    clientController.configurationUpdates.subscribe(({ resolve }) => resolve(Promise.resolve()))
+    const environment = new BehaviorSubject<Environment>(FIXTURE_ENVIRONMENT)
+    const services = new Services(environment)
+    const client = createExtensionHostClient(
+        environment,
+        services,
+        of(clientTransports).pipe(
+            switchMap(async clientTransports => {
+                const connection = createConnection(clientTransports)
+                connection.listen()
 
-    const extensionHost = createExtensionHost(
-        {
-            bundleURL: '',
-            sourcegraphURL: 'https://example.com',
-            clientApplication: 'sourcegraph',
-            settingsCascade: {
-                final: { a: 1 },
-            },
-        },
-        serverTransports
+                const initData: InitData = {
+                    sourcegraphURL: 'https://example.com',
+                    clientApplication: 'sourcegraph',
+                }
+                await connection.sendRequest('initialize', [initData])
+                return connection
+            })
+        )
     )
 
+    // Ack all settings updates.
+    services.settings.updates.subscribe(({ resolve }) => resolve(Promise.resolve()))
+
+    await (await extensionHost.__testAPI).internal.sync()
+
     // Wait for client to be ready.
-    await clientController.clientEntries
-        .pipe(
-            filter(entries => entries.length > 0),
-            first()
-        )
-        .toPromise()
+    //
+    // await clientController.clientEntries
+    //     .pipe(
+    //         filter(entries => entries.length > 0),
+    //         first()
+    //     )
+    //     .toPromise()
 
     return {
-        clientController,
-        extensionHost,
-        getEnvironment(): Environment {
-            // This runs synchronously because the Observable's root source is a BehaviorSubject (which has an initial value).
-            // Confirm it is synchronous just in case, because a bug here would be hard to diagnose.
-            let value!: Environment
-            let sync = false
-            clientController.environment
-                .pipe(first())
-                .subscribe(environment => {
-                    value = environment
-                    sync = true
-                })
-                .unsubscribe()
-            if (!sync) {
-                throw new Error('environment is not synchronously available')
-            }
-            return value
-        },
-        ready: ready({ clientController, extensionHost }),
+        client,
+        extensionHost: await extensionHost.__testAPI,
+        services,
+        environment,
     }
-}
-
-/** @internal */
-async function ready({ extensionHost }: TestContext): Promise<void> {
-    await extensionHost.internal.sync()
 }
 
 /**

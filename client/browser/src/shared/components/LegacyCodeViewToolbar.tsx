@@ -9,7 +9,8 @@
 
 import H from 'history'
 import * as React from 'react'
-import { Subscription } from 'rxjs'
+import { from, Subscription } from 'rxjs'
+import { map } from 'rxjs/operators'
 import { ActionsNavItems } from '../../../../../shared/src/actions/ActionsNavItems'
 import { ContributableMenu } from '../../../../../shared/src/api/protocol'
 import { ExtensionsControllerProps } from '../../../../../shared/src/extensions/controller'
@@ -61,10 +62,9 @@ export class CodeViewToolbar extends React.Component<CodeViewToolbarProps, CodeV
     public componentDidMount(): void {
         if (this.props.platformContext) {
             this.subscriptions.add(
-                this.props.platformContext.settingsCascade.subscribe(
-                    settingsCascade => this.setState({ settingsCascade }),
-                    err => console.error(err)
-                )
+                from(this.props.platformContext.environment)
+                    .pipe(map(({ configuration }) => configuration))
+                    .subscribe(settingsCascade => this.setState({ settingsCascade }), err => console.error(err))
             )
         }
         this.subscriptions.add(fetchSite().subscribe(site => this.setState(() => ({ site }))))

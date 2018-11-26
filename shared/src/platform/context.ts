@@ -1,10 +1,9 @@
-import { Subscribable } from 'rxjs'
+import { NextObserver, Observable, Subscribable } from 'rxjs'
+import { Environment } from '../api/client/environment'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
-import { ConfiguredExtension } from '../extensions/extension'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { UpdateExtensionSettingsArgs } from '../settings/edit'
-import { SettingsCascade, SettingsCascadeOrError } from '../settings/settings'
 
 /**
  * Platform-specific data and methods shared by multiple Sourcegraph components.
@@ -14,10 +13,9 @@ import { SettingsCascade, SettingsCascadeOrError } from '../settings/settings'
  */
 export interface PlatformContext {
     /**
-     * An observable that emits whenever the settings cascade changes (including when any individual subject's
-     * settings change).
+     * An observable that emits whenever the environment changes.
      */
-    readonly settingsCascade: Subscribable<SettingsCascadeOrError>
+    readonly environment: Subscribable<Environment> & { value: Environment } & NextObserver<Environment>
 
     /**
      * Update the settings for the subject.
@@ -56,12 +54,57 @@ export interface PlatformContext {
     forceUpdateTooltip(): void
 
     /**
-     * Spawns (e.g., in a Web Worker) and opens a communication channel to an extension.
+     * Spawns a new JavaScript execution context (such as a Web Worker or browser extension
+     * background worker) with the extension host and opens a communication channel to it. It is
+     * called exactly once, to start the extension host.
+     *
+     * @returns An observable that emits at most once with the message transports for communicating
+     * with the execution context (using, e.g., postMessage/onmessage) when it is ready.
      */
-    createMessageTransports: (
-        extension: ConfiguredExtension,
-        settingsCascade: SettingsCascade
-    ) => Promise<MessageTransports>
+    createExtensionHost(): Observable<MessageTransports>
+
+    /**
+     * Returns the script URL suitable for passing to importScripts for an extension's bundle.
+     *
+     * This is necessary because some platforms (such as Chrome extensions) use a script-src CSP
+     * that would prevent loading bundles from arbitrary URLs, which requires us to pass blob: URIs
+     * to importScripts.
+     *
+     * @param bundleURL The URL to the JavaScript bundle file specified in the extension manifest.
+     * @return A script URL suitable for passing to importScripts, typically either the original
+     * https:// URL for the extension's bundle or a blob: URI for it.
+     */
+    getScriptURLForExtension(bundleURL: string): string | Promise<string>
+
+    /**
+     * The URL to the Sourcegraph site that the user's session is associated with. This refers to
+     * Sourcegraph.com (`https://sourcegraph.com`) by default, or a self-hosted instance of
+     * Sourcegraph.
+     *
+     * This is available to extensions in `sourcegraph.internal.sourcegraphURL`.
+     *
+     * @todo Consider removing this when https://github.com/sourcegraph/sourcegraph/issues/566 is
+     * fixed.
+     *
+     * @example `https://sourcegraph.com`
+     */
+    sourcegraphURL: string
+
+    /**
+     * The client application that is running this extension, either 'sourcegraph' for Sourcegraph
+     * or 'other' for all other applications (such as GitHub, GitLab, etc.).
+     *
+     * This is available to extensions in `sourcegraph.internal.clientApplication`.
+     *
+     * @todo Consider removing this when https://github.com/sourcegraph/sourcegraph/issues/566 is
+     * fixed.
+     */
+    clientApplication: 'sourcegraph' | 'other'
+
+    /**
+     * Whether to log all messages sent between the client and the extension host.
+     */
+    traceExtensionHostCommunication: Subscribable<boolean> & NextObserver<boolean>
 }
 
 /**

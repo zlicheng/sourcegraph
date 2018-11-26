@@ -1,11 +1,10 @@
 import { isArray } from 'lodash-es'
 import { from, Subscription, throwError, Unsubscribable } from 'rxjs'
-import { switchMap, take } from 'rxjs/operators'
-import { Controller } from '../api/client/controller'
-import { Extension } from '../api/client/extension'
-import { ActionContributionClientCommandUpdateConfiguration, ConfigurationUpdateParams } from '../api/protocol'
+import { map, switchMap, take } from 'rxjs/operators'
+import { CommandRegistry } from '../api/client/services/command'
+import { SettingsUpdate } from '../api/client/services/settings'
+import { ActionContributionClientCommandUpdateConfiguration } from '../api/protocol'
 import { PlatformContext } from '../platform/context'
-import { SettingsCascade } from '../settings/settings'
 import { isErrorLike } from '../util/errors'
 
 /**
@@ -13,14 +12,14 @@ import { isErrorLike } from '../util/errors'
  * {@link module:sourcegraph.module/protocol/contribution.ActionContribution#command} for
  * documentation.
  */
-export function registerBuiltinClientCommands<E extends Extension>(
-    context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings' | 'queryGraphQL' | 'queryLSP'>,
-    controller: Controller<E, SettingsCascade>
+export function registerBuiltinClientCommands(
+    context: Pick<PlatformContext, 'environment' | 'updateSettings' | 'queryGraphQL' | 'queryLSP'>,
+    commandRegistry: CommandRegistry
 ): Unsubscribable {
     const subscription = new Subscription()
 
     subscription.add(
-        controller.services.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'open',
             run: (url: string) => {
                 // The `open` client command is usually implemented by ActionItem rendering the action with the
@@ -36,7 +35,7 @@ export function registerBuiltinClientCommands<E extends Extension>(
     )
 
     subscription.add(
-        controller.services.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'openPanel',
             run: (viewID: string) => {
                 // As above for `open`, the `openPanel` client command is usually implemented by an HTML <a>
@@ -48,7 +47,7 @@ export function registerBuiltinClientCommands<E extends Extension>(
     )
 
     subscription.add(
-        controller.services.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'updateConfiguration',
             run: (...anyArgs: any[]): Promise<void> => {
                 const args = anyArgs as ActionContributionClientCommandUpdateConfiguration['commandArguments']
@@ -62,7 +61,7 @@ export function registerBuiltinClientCommands<E extends Extension>(
      * with the privileges of the current user.
      */
     subscription.add(
-        controller.services.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'queryGraphQL',
             run: (query: string, variables: { [name: string]: any }): Promise<any> =>
                 // 🚨 SECURITY: The request might contain private info (such as
@@ -79,7 +78,7 @@ export function registerBuiltinClientCommands<E extends Extension>(
      * performed with the privileges of the current user.
      */
     subscription.add(
-        controller.services.commands.registerCommand({
+        commandRegistry.registerCommand({
             command: 'queryLSP',
             run: requests => from(context.queryLSP(requests)).toPromise(),
         })
@@ -112,14 +111,15 @@ export function urlForOpenPanel(viewID: string, urlHash: string): string {
  * Applies an edit to the settings of the highest-precedence subject.
  */
 export function updateConfiguration(
-    context: Pick<PlatformContext, 'settingsCascade' | 'updateSettings'>,
-    params: ConfigurationUpdateParams
+    context: Pick<PlatformContext, 'environment' | 'updateSettings'>,
+    params: SettingsUpdate
 ): Promise<void> {
     // TODO(sqs): Allow extensions to specify which subject's settings to update
     // (instead of always updating the highest-precedence subject's settings).
-    return from(context.settingsCascade)
+    return from(context.environment)
         .pipe(
             take(1),
+            map(({ configuration }) => configuration),
             switchMap(x => {
                 if (!x.subjects) {
                     return throwError(new Error('unable to update settings: no settings subjects available'))
@@ -141,11 +141,11 @@ export function updateConfiguration(
 /**
  * Converts the arguments for the `updateConfiguration` client command (as documented in
  * {@link ActionContributionClientCommandUpdateConfiguration#commandArguments})
- * to {@link ConfigurationUpdateParams}.
+ * to {@link SettingsUpdate}.
  */
 export function convertUpdateConfigurationCommandArgs(
     args: ActionContributionClientCommandUpdateConfiguration['commandArguments']
-): ConfigurationUpdateParams {
+): SettingsUpdate {
     if (
         !isArray(args) ||
         !(args.length >= 2 && args.length <= 4) ||
