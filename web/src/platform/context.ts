@@ -1,7 +1,8 @@
 import { isEqual } from 'lodash'
-import { Observable } from 'rxjs'
+import { BehaviorSubject, Observable } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
 import ExtensionHostWorker from 'worker-loader!../../../shared/src/api/extension/main.worker'
+import { EMPTY_ENVIRONMENT, Environment } from '../../../shared/src/api/client/environment'
 import { createWebWorkerMessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/transports/webWorker'
 import { gql } from '../../../shared/src/graphql/graphql'
 import { PlatformContext } from '../../../shared/src/platform/context'
@@ -18,11 +19,24 @@ import { LocalStorageSubject } from '../util/LocalStorageSubject'
  * Creates the {@link PlatformContext} for the web app.
  */
 export function createPlatformContext(): PlatformContext {
+    // TODO!(sqs): clean up, remove redundant settingsCascade and environment
+    const environment = new BehaviorSubject<Environment>({
+        ...EMPTY_ENVIRONMENT,
+        context: {
+            // TODO!3(sqs): still necessary?
+            'clientApplication.isSourcegraph': true,
+        },
+    })
+    settingsCascade.subscribe(settingsCascade =>
+        environment.next({ ...environment.value, configuration: gqlToCascade(settingsCascade) })
+    )
+
     const context: PlatformContext = {
         settingsCascade: settingsCascade.pipe(
             map(gqlToCascade),
             distinctUntilChanged((a, b) => isEqual(a, b))
         ),
+        environment,
         updateSettings: async (subject, args) => {
             // Unauthenticated users can't update settings. (In the browser extension, they can update client
             // settings even when not authenticated. The difference in behavior in the web app vs. browser

@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs'
+import { Subscribable } from 'rxjs'
 import { Environment } from './environment'
 import { CommandRegistry } from './services/command'
 import { ContributionRegistry } from './services/contribution'
@@ -15,7 +15,7 @@ import { ViewProviderRegistry } from './services/view'
  * Services is a container for all services used by the client application.
  */
 export class Services {
-    constructor(private environment: Observable<Environment>) {}
+    constructor(private environment: Subscribable<Environment>) {}
 
     public readonly commands = new CommandRegistry()
     public readonly contribution = new ContributionRegistry(this.environment)

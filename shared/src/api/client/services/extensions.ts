@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs'
+import { from, Observable, Subscribable } from 'rxjs'
 import { map, tap } from 'rxjs/operators'
 import {
     ConfiguredExtension,
@@ -24,7 +24,7 @@ export interface ExecutableExtension extends Pick<ConfiguredExtension, 'id'> {
  */
 export class ExtensionRegistry {
     public constructor(
-        private environment: Observable<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>,
+        private environment: Subscribable<Pick<Environment, 'configuration' | 'extensions' | 'visibleTextDocuments'>>,
         private extensionActivationFilter = extensionsWithMatchedActivationEvent
     ) {}
 
@@ -45,7 +45,7 @@ export class ExtensionRegistry {
      */
     public get activeExtensions(): Observable<ExecutableExtension[]> {
         const activeExtensionIDs: string[] = []
-        return this.environment.pipe(
+        return from(this.environment).pipe(
             tap(environment => {
                 const activeExtensions = this.extensionActivationFilter(environment)
                 for (const x of activeExtensions) {

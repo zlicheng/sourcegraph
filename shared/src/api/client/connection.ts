@@ -1,4 +1,4 @@
-import { BehaviorSubject, Subscription } from 'rxjs'
+import { from, NextObserver, Subscribable, Subscription } from 'rxjs'
 import { distinctUntilChanged, map } from 'rxjs/operators'
 import { ContextValues } from 'sourcegraph'
 import { Connection } from '../protocol/jsonrpc2/connection'
@@ -55,7 +55,7 @@ export interface ActivatedExtension {
 
 export function createExtensionHostClientConnection(
     connection: Connection,
-    environment: BehaviorSubject<Environment>,
+    environment: Subscribable<Environment> & { value: Environment } & NextObserver<Environment>,
     services: Services
 ): ExtensionHostClientConnection {
     const subscription = new Subscription()
@@ -65,7 +65,7 @@ export function createExtensionHostClientConnection(
     subscription.add(
         new ClientConfiguration<any>(
             connection,
-            environment.pipe(
+            from(environment).pipe(
                 map(({ configuration }) => configuration),
                 distinctUntilChanged()
             ),
@@ -87,7 +87,7 @@ export function createExtensionHostClientConnection(
     subscription.add(
         new ClientWindows(
             connection,
-            environment.pipe(
+            from(environment).pipe(
                 map(({ visibleTextDocuments }) => visibleTextDocuments),
                 distinctUntilChanged()
             ),
@@ -107,7 +107,7 @@ export function createExtensionHostClientConnection(
     subscription.add(
         new ClientDocuments(
             connection,
-            environment.pipe(
+            from(environment).pipe(
                 map(({ visibleTextDocuments }) => visibleTextDocuments),
                 distinctUntilChanged()
             )
@@ -128,7 +128,7 @@ export function createExtensionHostClientConnection(
     subscription.add(
         new ClientRoots(
             connection,
-            environment.pipe(
+            from(environment).pipe(
                 map(({ roots }) => roots),
                 distinctUntilChanged()
             )

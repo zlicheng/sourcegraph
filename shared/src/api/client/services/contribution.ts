@@ -1,4 +1,13 @@
-import { BehaviorSubject, combineLatest, isObservable, Observable, ObservableInput, of, Unsubscribable } from 'rxjs'
+import {
+    BehaviorSubject,
+    combineLatest,
+    isObservable,
+    Observable,
+    ObservableInput,
+    of,
+    Subscribable,
+    Unsubscribable,
+} from 'rxjs'
 import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
 import {
     ActionContribution,
@@ -40,7 +49,7 @@ export class ContributionRegistry {
     /** All entries, including entries that are not enabled in the current context. */
     private _entries = new BehaviorSubject<ContributionsEntry[]>([])
 
-    public constructor(private environment: Observable<Environment>) {}
+    public constructor(private environment: Subscribable<Environment>) {}
 
     /** Register contributions and return an unsubscribable that deregisters the contributions. */
     public registerContributions(entry: ContributionsEntry): ContributionUnsubscribable {

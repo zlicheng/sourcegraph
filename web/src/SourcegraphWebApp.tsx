@@ -4,9 +4,8 @@ import ServerIcon from 'mdi-react/ServerIcon'
 import * as React from 'react'
 import { Route } from 'react-router'
 import { BrowserRouter } from 'react-router-dom'
-import { BehaviorSubject, combineLatest, from, Subscription } from 'rxjs'
+import { combineLatest, from, Subscription } from 'rxjs'
 import { startWith } from 'rxjs/operators'
-import { EMPTY_ENVIRONMENT, Environment } from '../../shared/src/api/client/environment'
 import { TextDocumentItem } from '../../shared/src/api/client/types/textDocument'
 import { WorkspaceRoot } from '../../shared/src/api/protocol/plainTypes'
 import {
@@ -25,7 +24,6 @@ import { FeedbackText } from './components/FeedbackText'
 import { HeroPage } from './components/HeroPage'
 import { Tooltip } from './components/tooltip/Tooltip'
 import { ExploreSectionDescriptor } from './explore/ExploreArea'
-import { ExtensionsEnvironmentProps } from './extensions/environment/ExtensionsEnvironment'
 import { ExtensionAreaRoute } from './extensions/extension/ExtensionArea'
 import { ExtensionAreaHeaderNavItem } from './extensions/extension/ExtensionAreaHeader'
 import { ExtensionsAreaRoute } from './extensions/ExtensionsArea'
@@ -63,11 +61,7 @@ export interface SourcegraphWebAppProps extends KeybindingsProps {
     routes: ReadonlyArray<LayoutRouteProps>
 }
 
-interface SourcegraphWebAppState
-    extends SettingsCascadeProps,
-        PlatformContextProps,
-        ExtensionsEnvironmentProps,
-        ExtensionsControllerProps {
+interface SourcegraphWebAppState extends SettingsCascadeProps, PlatformContextProps, ExtensionsControllerProps {
     error?: Error
 
     /** The currently authenticated user (or null if the viewer is anonymous). */
@@ -111,20 +105,12 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
             navbarSearchQuery: '',
             settingsCascade: { subjects: null, final: null },
             platformContext,
-            extensionsEnvironment: {
-                ...this.extensionsEnvironment.value,
-                context: {
-                    // TODO!3(sqs): still necessary?
-                    'clientApplication.isSourcegraph': true,
-                },
-            },
-            extensionsController: createExtensionsController(platformContext, this.extensionsEnvironment),
+            extensionsController: createExtensionsController(platformContext),
             viewerSubject: SITE_SUBJECT_NO_ADMIN,
             isMainPage: false,
         }
     }
 
-    private extensionsEnvironment = new BehaviorSubject<Environment>(EMPTY_ENVIRONMENT)
     private subscriptions = new Subscription()
 
     public componentDidMount(): void {
@@ -161,20 +147,11 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
             })
         )
 
-        this.subscriptions.add(
-            this.extensionsEnvironment.subscribe(value =>
-                this.setState({ extensionsEnvironment: value, settingsCascade: value.configuration })
-            )
-        )
-
         this.subscriptions.add(this.state.extensionsController)
 
         this.subscriptions.add(
             this.state.platformContext.settingsCascade.subscribe(settingsCascade => {
-                this.extensionsEnvironment.next({
-                    ...this.extensionsEnvironment.value,
-                    configuration: settingsCascade,
-                })
+                this.setState({ settingsCascade })
             })
         )
 
@@ -267,7 +244,6 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
                                 onNavbarQueryChange={this.onNavbarQueryChange}
                                 // Extensions
                                 platformContext={this.state.platformContext}
-                                extensionsEnvironment={this.state.extensionsEnvironment}
                                 extensionsOnRootsChange={this.extensionsOnRootsChange}
                                 extensionsOnVisibleTextDocumentsChange={this.extensionsOnVisibleTextDocumentsChange}
                                 extensionsController={this.state.extensionsController}
@@ -291,7 +267,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
     }
 
     private onMainPage = (mainPage: boolean) => {
-        this.setState(state => ({ isMainPage: mainPage }))
+        this.setState(() => ({ isMainPage: mainPage }))
     }
 
     private onNavbarQueryChange = (navbarSearchQuery: string) => {
@@ -299,19 +275,22 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
     }
 
     private extensionsOnRootsChange = (roots: WorkspaceRoot[] | null): void => {
-        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, roots })
+        this.state.platformContext.environment.next({ ...this.state.platformContext.environment.value, roots })
     }
 
     private onViewerConfiguredRegistryExtensionsChange(
         viewerConfiguredRegistryExtensions: ConfiguredRegistryExtension[]
     ): void {
-        this.extensionsEnvironment.next({
-            ...this.extensionsEnvironment.value,
+        this.state.platformContext.environment.next({
+            ...this.state.platformContext.environment.value,
             extensions: viewerConfiguredRegistryExtensions,
         })
     }
 
     private extensionsOnVisibleTextDocumentsChange = (visibleTextDocuments: TextDocumentItem[] | null): void => {
-        this.extensionsEnvironment.next({ ...this.extensionsEnvironment.value, visibleTextDocuments })
+        this.state.platformContext.environment.next({
+            ...this.state.platformContext.environment.value,
+            visibleTextDocuments,
+        })
     }
 }

@@ -1,4 +1,4 @@
-import { BehaviorSubject, Observable, Subscription, Unsubscribable } from 'rxjs'
+import { NextObserver, Observable, Subscribable, Subscription, Unsubscribable } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { createExtensionHostClientConnection, ExtensionHostClientConnection } from './connection'
@@ -23,7 +23,7 @@ export interface ExtensionHostClient extends Unsubscribable {
 export function createExtensionHostClient(
     // TODO!(sqs): make it possible to just use an observable of environment, not
     // behaviorsubject, to simplify data flow
-    environment: BehaviorSubject<Environment>,
+    environment: Subscribable<Environment> & { value: Environment } & NextObserver<Environment>,
     services: Services,
     extensionHostConnection: Observable<Connection>
 ): ExtensionHostClient {

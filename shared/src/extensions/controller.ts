@@ -1,4 +1,4 @@
-import { BehaviorSubject, combineLatest, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
+import { combineLatest, from, Observable, Subject, Subscribable, Subscription, Unsubscribable } from 'rxjs'
 import { distinctUntilChanged, filter, map, mergeMap, share, switchMap, tap } from 'rxjs/operators'
 import { createExtensionHostClient } from '../api/client/client'
 import { Environment } from '../api/client/environment'
@@ -68,13 +68,10 @@ export interface ExtensionsControllerProps {
  *
  * TODO!(sqs): move environment out of here
  */
-export function createController(
-    context: PlatformContext,
-    environment: BehaviorSubject<Environment<ConfiguredExtension>>
-): Controller {
+export function createController(context: PlatformContext): Controller {
     const subscriptions = new Subscription()
 
-    const services = new Services(environment)
+    const services = new Services(context.environment)
     const extensionHostConnection = combineLatest(
         context.createExtensionHost().pipe(
             switchMap(async messageTransports => {
@@ -96,13 +93,13 @@ export function createController(
         map(([connection]) => connection),
         distinctUntilChanged()
     )
-    const client = createExtensionHostClient(environment, services, extensionHostConnection)
+    const client = createExtensionHostClient(context.environment, services, extensionHostConnection)
     subscriptions.add(client)
 
     const notifications = new Subject<Notification>()
 
     subscriptions.add(registerBuiltinClientCommands(context, services.commands))
-    subscriptions.add(registerExtensionContributions(services.contribution, environment))
+    subscriptions.add(registerExtensionContributions(services.contribution, context.environment))
 
     // Show messages (that don't need user input) as global notifications.
     subscriptions.add(
@@ -158,7 +155,7 @@ export function createController(
         // Debug helper: log environment changes.
         const LOG_ENVIRONMENT = false
         if (LOG_ENVIRONMENT) {
-            subscriptions.add(environment.subscribe(environment => log('info', 'env', environment)))
+            subscriptions.add(context.environment.subscribe(environment => log('info', 'env', environment)))
         }
 
         // Debug helpers: e.g., just run `sx` in devtools to get a reference to this client. (If multiple
@@ -166,7 +163,7 @@ export function createController(
         ;(window as any).sx = client
         // This value is synchronously available because observable has an underlying
         // BehaviorSubject source.
-        subscriptions.add(environment.subscribe(v => ((window as any).sxenv = v)))
+        subscriptions.add(context.environment.subscribe(v => ((window as any).sxenv = v)))
     }
 
     return {
@@ -183,9 +180,9 @@ export function createController(
 
 function registerExtensionContributions(
     contributionRegistry: ContributionRegistry,
-    environment: Observable<Environment<ConfiguredExtension>>
+    environment: Subscribable<Environment<ConfiguredExtension>>
 ): Unsubscribable {
-    const contributions = environment.pipe(
+    const contributions = from(environment).pipe(
         map(({ extensions }) => extensions),
         filter((extensions): extensions is ConfiguredExtension[] => !!extensions),
         map(extensions =>

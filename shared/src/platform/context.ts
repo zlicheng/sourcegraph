@@ -1,4 +1,5 @@
 import { NextObserver, Observable, Subscribable } from 'rxjs'
+import { Environment } from '../api/client/environment'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
@@ -17,6 +18,11 @@ export interface PlatformContext {
      * settings change).
      */
     readonly settingsCascade: Subscribable<SettingsCascadeOrError>
+
+    /**
+     * An observable that emits whenever the environment changes.
+     */
+    readonly environment: Subscribable<Environment> & { value: Environment } & NextObserver<Environment>
 
     /**
      * Update the settings for the subject.

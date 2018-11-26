@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { render } from 'react-dom'
-import { combineLatest, from, Observable, Unsubscribable } from 'rxjs'
+import { combineLatest, from, Observable, Subscribable, Unsubscribable } from 'rxjs'
 import { filter, take } from 'rxjs/operators'
 import { ContributableMenu } from '../../../../../shared/src/api/protocol'
 import { TextDocumentDecoration } from '../../../../../shared/src/api/protocol/plainTypes'
@@ -29,15 +29,16 @@ export interface Controllers {
     extensionsController: ClientController
 }
 
-function createControllers(environment: Observable<Pick<Environment, 'roots' | 'visibleTextDocuments'>>): Controllers {
+function createControllers(context: PlatformContext): Controllers {
     const platformContext = createPlatformContext()
     const extensionsController = createController(platformContext)
 
     combineLatest(
         viewerConfiguredExtensions(platformContext),
         from(platformContext.settingsCascade).pipe(filter(isSettingsValid)),
-        environment
+        from(context.environment)
     ).subscribe(([extensions, configuration, { roots, visibleTextDocuments }]) => {
+        // TODO!2(sqs): fix weird subscription-in-subscription
         from(extensionsController.environment)
             .pipe(take(1))
             .subscribe(({ context }) => {
