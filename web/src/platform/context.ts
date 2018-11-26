@@ -1,6 +1,4 @@
-import { isEqual } from 'lodash'
 import { BehaviorSubject, Observable } from 'rxjs'
-import { distinctUntilChanged, map } from 'rxjs/operators'
 import ExtensionHostWorker from 'worker-loader!../../../shared/src/api/extension/main.worker'
 import { EMPTY_ENVIRONMENT, Environment } from '../../../shared/src/api/client/environment'
 import { createWebWorkerMessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/transports/webWorker'
@@ -32,10 +30,6 @@ export function createPlatformContext(): PlatformContext {
     )
 
     const context: PlatformContext = {
-        settingsCascade: settingsCascade.pipe(
-            map(gqlToCascade),
-            distinctUntilChanged((a, b) => isEqual(a, b))
-        ),
         environment,
         updateSettings: async (subject, args) => {
             // Unauthenticated users can't update settings. (In the browser extension, they can update client

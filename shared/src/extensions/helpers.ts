@@ -1,5 +1,5 @@
 import { from, Observable, of, throwError } from 'rxjs'
-import { catchError, filter, map, startWith, switchMap } from 'rxjs/operators'
+import { catchError, distinctUntilChanged, filter, map, startWith, switchMap } from 'rxjs/operators'
 import { gql, graphQLContent } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
 import { PlatformContext } from '../platform/context'
@@ -10,22 +10,24 @@ import { ConfiguredRegistryExtension, toConfiguredRegistryExtension } from './ex
 const LOADING: 'loading' = 'loading'
 
 export function viewerConfiguredExtensions({
-    settingsCascade,
+    environment,
     queryGraphQL,
-}: Pick<PlatformContext, 'settingsCascade' | 'queryGraphQL'>): Observable<ConfiguredRegistryExtension[]> {
-    return viewerConfiguredExtensionsOrLoading({ settingsCascade, queryGraphQL }).pipe(
+}: Pick<PlatformContext, 'environment' | 'queryGraphQL'>): Observable<ConfiguredRegistryExtension[]> {
+    return viewerConfiguredExtensionsOrLoading({ environment, queryGraphQL }).pipe(
         filter((extensions): extensions is ConfiguredRegistryExtension[] | ErrorLike => extensions !== LOADING),
         switchMap(extensions => (isErrorLike(extensions) ? throwError(extensions) : [extensions]))
     )
 }
 
 function viewerConfiguredExtensionsOrLoading({
-    settingsCascade,
+    environment,
     queryGraphQL,
-}: Pick<PlatformContext, 'settingsCascade' | 'queryGraphQL'>): Observable<
+}: Pick<PlatformContext, 'environment' | 'queryGraphQL'>): Observable<
     typeof LOADING | ConfiguredRegistryExtension[] | ErrorLike
 > {
-    return from(settingsCascade).pipe(
+    return from(environment).pipe(
+        map(({ configuration }) => configuration),
+        distinctUntilChanged(),
         switchMap(
             cascade =>
                 isErrorLike(cascade.final)

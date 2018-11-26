@@ -5,7 +5,7 @@ import * as React from 'react'
 import { Route } from 'react-router'
 import { BrowserRouter } from 'react-router-dom'
 import { combineLatest, from, Subscription } from 'rxjs'
-import { startWith } from 'rxjs/operators'
+import { map, startWith } from 'rxjs/operators'
 import { TextDocumentItem } from '../../shared/src/api/client/types/textDocument'
 import { WorkspaceRoot } from '../../shared/src/api/protocol/plainTypes'
 import {
@@ -24,6 +24,7 @@ import { FeedbackText } from './components/FeedbackText'
 import { HeroPage } from './components/HeroPage'
 import { Tooltip } from './components/tooltip/Tooltip'
 import { ExploreSectionDescriptor } from './explore/ExploreArea'
+import { ExtensionsEnvironmentProps } from './extensions/environment/ExtensionsEnvironment'
 import { ExtensionAreaRoute } from './extensions/extension/ExtensionArea'
 import { ExtensionAreaHeaderNavItem } from './extensions/extension/ExtensionAreaHeader'
 import { ExtensionsAreaRoute } from './extensions/ExtensionsArea'
@@ -61,7 +62,11 @@ export interface SourcegraphWebAppProps extends KeybindingsProps {
     routes: ReadonlyArray<LayoutRouteProps>
 }
 
-interface SourcegraphWebAppState extends SettingsCascadeProps, PlatformContextProps, ExtensionsControllerProps {
+interface SourcegraphWebAppState
+    extends SettingsCascadeProps,
+        PlatformContextProps,
+        ExtensionsEnvironmentProps,
+        ExtensionsControllerProps {
     error?: Error
 
     /** The currently authenticated user (or null if the viewer is anonymous). */
@@ -106,6 +111,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
             settingsCascade: { subjects: null, final: null },
             platformContext,
             extensionsController: createExtensionsController(platformContext),
+            environment: platformContext.environment.value,
             viewerSubject: SITE_SUBJECT_NO_ADMIN,
             isMainPage: false,
         }
@@ -126,7 +132,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
 
         this.subscriptions.add(
             combineLatest(
-                from(this.state.platformContext.settingsCascade).pipe(startWith(null)),
+                from(this.state.platformContext.environment).pipe(map(({ configuration }) => configuration)),
                 authenticatedUser.pipe(startWith(null))
             ).subscribe(([cascade, authenticatedUser]) => {
                 this.setState(() => {
@@ -150,8 +156,8 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         this.subscriptions.add(this.state.extensionsController)
 
         this.subscriptions.add(
-            this.state.platformContext.settingsCascade.subscribe(settingsCascade => {
-                this.setState({ settingsCascade })
+            this.state.platformContext.environment.subscribe(environment => {
+                this.setState({ environment })
             })
         )
 
@@ -160,7 +166,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         // TODO(sqs): handle loading and errors
         this.subscriptions.add(
             viewerConfiguredExtensions(this.state.platformContext).subscribe(
-                extensions => this.onViewerConfiguredRegistryExtensionsChange(extensions),
+                extensions => this.onViewerConfiguredExtensionsChange(extensions),
                 err => console.error(err)
             )
         )
@@ -244,6 +250,7 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
                                 onNavbarQueryChange={this.onNavbarQueryChange}
                                 // Extensions
                                 platformContext={this.state.platformContext}
+                                environment={this.state.environment}
                                 extensionsOnRootsChange={this.extensionsOnRootsChange}
                                 extensionsOnVisibleTextDocumentsChange={this.extensionsOnVisibleTextDocumentsChange}
                                 extensionsController={this.state.extensionsController}
@@ -278,12 +285,10 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         this.state.platformContext.environment.next({ ...this.state.platformContext.environment.value, roots })
     }
 
-    private onViewerConfiguredRegistryExtensionsChange(
-        viewerConfiguredRegistryExtensions: ConfiguredRegistryExtension[]
-    ): void {
+    private onViewerConfiguredExtensionsChange(viewerConfiguredExtensions: ConfiguredRegistryExtension[]): void {
         this.state.platformContext.environment.next({
             ...this.state.platformContext.environment.value,
-            extensions: viewerConfiguredRegistryExtensions,
+            extensions: viewerConfiguredExtensions,
         })
     }
 

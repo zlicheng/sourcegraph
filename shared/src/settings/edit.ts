@@ -16,7 +16,7 @@ export type UpdateExtensionSettingsArgs =
       }
 
 export function updateSettings(
-    { settingsCascade, queryGraphQL }: Pick<PlatformContext, 'settingsCascade' | 'queryGraphQL'>,
+    { environment, queryGraphQL }: Pick<PlatformContext, 'environment' | 'queryGraphQL'>,
     subject: GQL.ID,
     args: UpdateExtensionSettingsArgs,
     applySettingsEdit: (
@@ -26,9 +26,11 @@ export function updateSettings(
         edit: GQL.ISettingsEdit
     ) => Promise<void>
 ): Promise<void> {
-    return from(settingsCascade)
+    return from(environment)
         .pipe(
             take(1),
+            // TODO!(sqs): rename configuration -> settingsCascade
+            map(({ configuration }) => configuration),
             switchMap(settingsCascade => {
                 if (!settingsCascade.subjects) {
                     throw new Error('settings not available')
