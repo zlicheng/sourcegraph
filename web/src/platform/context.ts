@@ -12,6 +12,7 @@ import { sendLSPHTTPRequests } from '../backend/lsp'
 import { Tooltip } from '../components/tooltip/Tooltip'
 import { settingsCascade } from '../settings/configuration'
 import { refreshSettings } from '../user/settings/backend'
+import { LocalStorageSubject } from '../util/LocalStorageSubject'
 
 /**
  * Creates the {@link PlatformContext} for the web app.
@@ -73,6 +74,7 @@ export function createPlatformContext(): PlatformContext {
         getScriptURLForExtension: bundleURL => bundleURL,
         sourcegraphURL: window.context.externalURL,
         clientApplication: 'sourcegraph',
+        traceExtensionHostCommunication: new LocalStorageSubject<boolean>('traceExtensionHostCommunication', false),
     }
     return context
 }

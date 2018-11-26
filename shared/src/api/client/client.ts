@@ -1,4 +1,4 @@
-import { BehaviorSubject, Observable, Unsubscribable } from 'rxjs'
+import { BehaviorSubject, Observable, Subscription, Unsubscribable } from 'rxjs'
 import { switchMap } from 'rxjs/operators'
 import { Connection } from '../protocol/jsonrpc2/connection'
 import { createExtensionHostClientConnection, ExtensionHostClientConnection } from './connection'
@@ -27,18 +27,20 @@ export function createExtensionHostClient(
     services: Services,
     extensionHostConnection: Observable<Connection>
 ): ExtensionHostClient {
-    const subscription = extensionHostConnection
-        .pipe(
-            switchMap(connection => {
-                const client = createExtensionHostClientConnection(connection, environment, services)
-                return new Observable<ExtensionHostClientConnection>(sub => {
-                    sub.next(client)
-                    return () => client.unsubscribe()
-                })
+    const subscriptions = new Subscription()
+
+    const client = extensionHostConnection.pipe(
+        switchMap(connection => {
+            const client = createExtensionHostClientConnection(connection, environment, services)
+            return new Observable<ExtensionHostClientConnection>(sub => {
+                sub.next(client)
+                return () => client.unsubscribe()
             })
-        )
-        .subscribe()
+        })
+    )
+    subscriptions.add(client.subscribe())
+
     return {
-        unsubscribe: () => subscription.unsubscribe(),
+        unsubscribe: () => subscriptions.unsubscribe(),
     }
 }

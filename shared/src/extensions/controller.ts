@@ -1,5 +1,5 @@
-import { BehaviorSubject, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
-import { filter, map, mergeMap, share, switchMap } from 'rxjs/operators'
+import { BehaviorSubject, combineLatest, from, Observable, Subject, Subscription, Unsubscribable } from 'rxjs'
+import { filter, map, mergeMap, share, switchMap, tap } from 'rxjs/operators'
 import { createExtensionHostClient } from '../api/client/client'
 import { Environment } from '../api/client/environment'
 import { Services } from '../api/client/services'
@@ -9,6 +9,7 @@ import { MessageType } from '../api/client/services/notifications'
 import { InitData } from '../api/extension/extensionHost'
 import { Contributions } from '../api/protocol'
 import { createConnection } from '../api/protocol/jsonrpc2/connection'
+import { BrowserConsoleTracer } from '../api/protocol/jsonrpc2/trace'
 import { registerBuiltinClientCommands, updateConfiguration } from '../commands/commands'
 import { Notification } from '../notifications/notification'
 import { PlatformContext } from '../platform/context'
@@ -74,38 +75,30 @@ export function createController(
     const subscriptions = new Subscription()
 
     const services = new Services(environment)
-    const extensionHostConnection = context.createExtensionHost().pipe(
-        switchMap(async messageTransports => {
-            const connection = createConnection(messageTransports)
-            connection.listen()
+    const extensionHostConnection = combineLatest(
+        context.createExtensionHost().pipe(
+            switchMap(async messageTransports => {
+                const connection = createConnection(messageTransports)
+                connection.listen()
 
-            const initData: InitData = {
-                sourcegraphURL: context.sourcegraphURL,
-                clientApplication: context.clientApplication,
-            }
-            await connection.sendRequest('initialize', [initData])
-            return connection
-        }),
-        share()
+                const initData: InitData = {
+                    sourcegraphURL: context.sourcegraphURL,
+                    clientApplication: context.clientApplication,
+                }
+                await connection.sendRequest('initialize', [initData])
+                return connection
+            }),
+            share()
+        ),
+        context.traceExtensionHostCommunication
+    ).pipe(
+        tap(([connection, trace]) => connection.trace(trace ? new BrowserConsoleTracer('') : null)),
+        map(([connection]) => connection)
     )
     const client = createExtensionHostClient(environment, services, extensionHostConnection)
     subscriptions.add(client)
 
     const notifications = new Subject<Notification>()
-
-    // TODO!(sqs): reintroduce
-    //
-    // Apply trace settings.
-    //
-    // HACK(sqs): This is inefficient and doesn't unsubscribe itself.
-    // client.clientEntries.subscribe(entries => {
-    //     const traceEnabled = localStorage.getItem(ExtensionStatus.TRACE_STORAGE_KEY) !== null
-    //     for (const e of entries) {
-    //         e.connection
-    //             .then(c => c.trace(traceEnabled ? Trace.Verbose : Trace.Off, new BrowserConsoleTracer(e.key.id)))
-    //             .catch(err => console.error(err))
-    //     }
-    // })
 
     subscriptions.add(registerBuiltinClientCommands(context, services.commands))
     subscriptions.add(registerExtensionContributions(services.contribution, environment))

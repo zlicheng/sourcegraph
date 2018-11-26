@@ -1,4 +1,4 @@
-import { Observable, Subscribable } from 'rxjs'
+import { NextObserver, Observable, Subscribable } from 'rxjs'
 import { MessageTransports } from '../api/protocol/jsonrpc2/connection'
 import { GraphQLResult } from '../graphql/graphql'
 import * as GQL from '../graphql/schema'
@@ -101,6 +101,11 @@ export interface PlatformContext {
      * fixed.
      */
     clientApplication: 'sourcegraph' | 'other'
+
+    /**
+     * Whether to log all messages sent between the client and the extension host.
+     */
+    traceExtensionHostCommunication: Subscribable<boolean> & NextObserver<boolean>
 }
 
 /**
