@@ -18,12 +18,7 @@ import { viewerConfiguredExtensions } from '../../shared/src/extensions/helpers'
 import * as GQL from '../../shared/src/graphql/schema'
 import { Notifications } from '../../shared/src/notifications/Notifications'
 import { PlatformContextProps } from '../../shared/src/platform/context'
-import {
-    ConfiguredSubject,
-    isSettingsValid,
-    SettingsCascadeOrError,
-    SettingsCascadeProps,
-} from '../../shared/src/settings/settings'
+import { SettingsCascadeProps } from '../../shared/src/settings/settings'
 import { isErrorLike } from '../../shared/src/util/errors'
 import { authenticatedUser } from './auth'
 import { FeedbackText } from './components/FeedbackText'
@@ -167,16 +162,20 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
         )
 
         this.subscriptions.add(
-            this.extensionsEnvironment.subscribe(value => this.setState({ extensionsEnvironment: value }))
+            this.extensionsEnvironment.subscribe(value =>
+                this.setState({ extensionsEnvironment: value, settingsCascade: value.configuration })
+            )
         )
 
         this.subscriptions.add(this.state.extensionsController)
 
         this.subscriptions.add(
-            this.state.platformContext.settingsCascade.subscribe(
-                v => this.onSettingsCascadeChange(v),
-                err => console.error(err)
-            )
+            this.state.platformContext.settingsCascade.subscribe(settingsCascade => {
+                this.extensionsEnvironment.next({
+                    ...this.extensionsEnvironment.value,
+                    configuration: settingsCascade,
+                })
+            })
         )
 
         // Keep the Sourcegraph extensions controller's extensions up-to-date.
@@ -297,27 +296,6 @@ export class SourcegraphWebApp extends React.Component<SourcegraphWebAppProps, S
 
     private onNavbarQueryChange = (navbarSearchQuery: string) => {
         this.setState({ navbarSearchQuery })
-    }
-
-    private onSettingsCascadeChange(settingsCascade: SettingsCascadeOrError): void {
-        this.setState({ settingsCascade })
-
-        if (isSettingsValid(settingsCascade)) {
-            // Only update Sourcegraph extensions environment configuration if the configuration was
-            // successfully parsed.
-            //
-            // TODO!(sqs): does that make sense?
-            this.extensionsEnvironment.next({
-                ...this.extensionsEnvironment.value,
-                configuration: {
-                    subjects: settingsCascade.subjects.filter(
-                        (subject): subject is ConfiguredSubject =>
-                            subject.settings !== null && !isErrorLike(subject.settings)
-                    ),
-                    final: settingsCascade.final,
-                },
-            })
-        }
     }
 
     private extensionsOnRootsChange = (roots: WorkspaceRoot[] | null): void => {
