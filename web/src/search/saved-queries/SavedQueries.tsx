@@ -1,5 +1,6 @@
 import { LoadingSpinner } from '@sourcegraph/react-loading-spinner'
 import * as H from 'history'
+import { isEqual } from 'lodash'
 import AddIcon from 'mdi-react/AddIcon'
 import AutoFixIcon from 'mdi-react/AutoFixIcon'
 import HelpCircleOutlineIcon from 'mdi-react/HelpCircleOutlineIcon'
@@ -7,17 +8,18 @@ import * as React from 'react'
 import { Redirect } from 'react-router'
 import { Link } from 'react-router-dom'
 import { Subject, Subscription } from 'rxjs'
-import { map } from 'rxjs/operators'
+import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
 import * as GQL from '../../../../shared/src/graphql/schema'
+import { SettingsCascadeProps } from '../../../../shared/src/settings/settings'
 import { siteFlags } from '../../site/backend'
 import { eventLogger } from '../../tracking/eventLogger'
-import { observeSavedQueries } from '../backend'
+import { fetchSavedQueries } from '../backend'
 import { ExampleSearches } from './ExampleSearches'
 import { SavedQuery } from './SavedQuery'
 import { SavedQueryCreateForm } from './SavedQueryCreateForm'
 import { SavedQueryFields } from './SavedQueryForm'
 
-interface Props {
+interface Props extends SettingsCascadeProps {
     authenticatedUser: GQL.IUser | null
     location: H.Location
     isLightTheme: boolean
@@ -62,8 +64,11 @@ export class SavedQueries extends React.Component<Props, State> {
         const isHomepage = this.props.location.pathname === '/search'
 
         this.subscriptions.add(
-            observeSavedQueries()
+            this.componentUpdates
                 .pipe(
+                    map(({ settingsCascade }) => settingsCascade),
+                    distinctUntilChanged((a, b) => isEqual(a, b)),
+                    switchMap(fetchSavedQueries),
                     map(savedQueries => ({
                         savedQueries: savedQueries.filter(query => !isHomepage || query.showOnHomepage).sort((a, b) => {
                             if (a.description < b.description) {

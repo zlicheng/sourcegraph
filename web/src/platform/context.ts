@@ -1,4 +1,5 @@
 import { BehaviorSubject, Observable } from 'rxjs'
+import { map, startWith, switchMap } from 'rxjs/operators'
 import ExtensionHostWorker from 'worker-loader!../../../shared/src/api/extension/main.worker'
 import { EMPTY_ENVIRONMENT, Environment } from '../../../shared/src/api/client/environment'
 import { createWebWorkerMessageTransports } from '../../../shared/src/api/protocol/jsonrpc2/transports/webWorker'
@@ -9,8 +10,7 @@ import { gqlToCascade } from '../../../shared/src/settings/settings'
 import { requestGraphQL } from '../backend/graphql'
 import { sendLSPHTTPRequests } from '../backend/lsp'
 import { Tooltip } from '../components/tooltip/Tooltip'
-import { settingsCascade } from '../settings/configuration'
-import { refreshSettings } from '../user/settings/backend'
+import { fetchViewerSettings, settingsRefreshes } from '../user/settings/backend'
 import { LocalStorageSubject } from '../util/LocalStorageSubject'
 
 /**
@@ -25,9 +25,13 @@ export function createPlatformContext(): PlatformContext {
             'clientApplication.isSourcegraph': true,
         },
     })
-    settingsCascade.subscribe(settingsCascade =>
-        environment.next({ ...environment.value, configuration: gqlToCascade(settingsCascade) })
-    )
+    settingsRefreshes
+        .pipe(
+            startWith(null),
+            switchMap(() => fetchViewerSettings()),
+            map(gqlToCascade)
+        )
+        .subscribe(configuration => environment.next({ ...environment.value, configuration }))
 
     const context: PlatformContext = {
         environment,
@@ -59,7 +63,7 @@ export function createPlatformContext(): PlatformContext {
             try {
                 await updateSettings(context, subject, args, mutateSettings)
             } finally {
-                await refreshSettings().toPromise()
+                settingsRefreshes.next()
             }
         },
         queryGraphQL: (request, variables) =>

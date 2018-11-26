@@ -1,12 +1,13 @@
 import * as React from 'react'
-import { concat, Observable } from 'rxjs'
-import { mergeMap } from 'rxjs/operators'
+import { Observable } from 'rxjs'
+import { mergeMap, tap } from 'rxjs/operators'
 import * as GQL from '../../../../shared/src/graphql/schema'
-import { refreshSettings } from '../../user/settings/backend'
+import { PlatformContextProps } from '../../../../shared/src/platform/context'
+import { settingsRefreshes } from '../../user/settings/backend'
 import { createSavedQuery, deleteSavedQuery, updateSavedQuery } from '../backend'
 import { SavedQueryFields, SavedQueryForm } from './SavedQueryForm'
 
-interface Props {
+interface Props extends PlatformContextProps {
     authenticatedUser: GQL.IUser | null
     savedQuery: GQL.ISavedQuery
     onDidUpdate: () => void
@@ -29,15 +30,20 @@ export const SavedQueryUpdateForm: React.FunctionComponent<Props> = props => (
         submitLabel="Save"
         // tslint:disable-next-line:jsx-no-lambda
         onSubmit={fields => updateSavedQueryFromForm(props, fields)}
+        {...props}
     />
 )
 
 function updateSavedQueryFromForm(props: Props, fields: SavedQueryFields): Observable<any> {
     // If the subject changed, we need to create it on the new subject and
     // delete it on the old subject.
+    //
+    // TODO!(sqs): find a way to get the lastID, dummy value here
+    const lastIDDummy = 1234
     if (props.savedQuery.subject.id !== fields.subject) {
         return createSavedQuery(
             { id: fields.subject },
+            lastIDDummy,
             fields.description,
             fields.query,
             fields.showOnHomepage,
@@ -45,19 +51,20 @@ function updateSavedQueryFromForm(props: Props, fields: SavedQueryFields): Obser
             fields.notifySlack,
             true
         ).pipe(
-            mergeMap(() => deleteSavedQuery(props.savedQuery.subject, props.savedQuery.id, true)),
-            mergeMap(() => concat(refreshSettings(), [null]))
+            mergeMap(() => deleteSavedQuery(props.savedQuery.subject, lastIDDummy, props.savedQuery.id, true)),
+            tap(() => settingsRefreshes.next())
         )
     }
 
     // Otherwise, it's just a simple update.
     return updateSavedQuery(
         props.savedQuery.subject,
+        lastIDDummy,
         props.savedQuery.id,
         fields.description,
         fields.query,
         fields.showOnHomepage,
         fields.notify,
         fields.notifySlack
-    )
+    ).pipe(tap(() => settingsRefreshes.next()))
 }

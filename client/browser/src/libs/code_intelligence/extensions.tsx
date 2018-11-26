@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { render } from 'react-dom'
-import { combineLatest, from, Observable, Subscribable, Unsubscribable } from 'rxjs'
-import { filter, map, take } from 'rxjs/operators'
+import { combineLatest, from, Observable, Unsubscribable } from 'rxjs'
+import { filter, map } from 'rxjs/operators'
 import { ContributableMenu } from '../../../../../shared/src/api/protocol'
 import { TextDocumentDecoration } from '../../../../../shared/src/api/protocol/plainTypes'
 import { CommandListPopoverButton } from '../../../../../shared/src/commandPalette/CommandList'
@@ -42,17 +42,18 @@ function createControllers(context: PlatformContext): Controllers {
         from(context.environment)
     ).subscribe(([extensions, configuration, { roots, visibleTextDocuments }]) => {
         // TODO!2(sqs): fix weird subscription-in-subscription
-        from(extensionsController.environment)
-            .pipe(take(1))
-            .subscribe(({ context }) => {
-                extensionsController.setEnvironment({
-                    roots,
-                    extensions,
-                    configuration,
-                    visibleTextDocuments,
-                    context,
-                })
-            })
+        //
+        // from(extensionsController.environment)
+        //     .pipe(take(1))
+        //     .subscribe(({ context }) => {
+        //         extensionsController.setEnvironment({
+        //             roots,
+        //             extensions,
+        //             configuration,
+        //             visibleTextDocuments,
+        //             context,
+        //         })
+        //     })
     })
 
     return { platformContext, extensionsController }
@@ -65,7 +66,7 @@ export function initializeExtensions(
     getCommandPaletteMount: MountGetter,
     environment: Observable<Pick<Environment, 'roots' | 'visibleTextDocuments'>>
 ): Controllers {
-    const { platformContext, extensionsController } = createControllers(environment)
+    const { platformContext, extensionsController } = createControllers(environment as any) // TODO!2(sqs): remove "as any" cast
     const history = H.createBrowserHistory()
 
     render(
