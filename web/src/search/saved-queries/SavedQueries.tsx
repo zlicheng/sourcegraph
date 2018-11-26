@@ -1,6 +1,5 @@
 import { LoadingSpinner } from '@sourcegraph/react-loading-spinner'
 import * as H from 'history'
-import { isEqual } from 'lodash'
 import AddIcon from 'mdi-react/AddIcon'
 import AutoFixIcon from 'mdi-react/AutoFixIcon'
 import HelpCircleOutlineIcon from 'mdi-react/HelpCircleOutlineIcon'
@@ -8,7 +7,7 @@ import * as React from 'react'
 import { Redirect } from 'react-router'
 import { Link } from 'react-router-dom'
 import { Subject, Subscription } from 'rxjs'
-import { distinctUntilChanged, map, switchMap } from 'rxjs/operators'
+import { map, startWith, switchMap } from 'rxjs/operators'
 import * as GQL from '../../../../shared/src/graphql/schema'
 import { SettingsCascadeProps } from '../../../../shared/src/settings/settings'
 import { siteFlags } from '../../site/backend'
@@ -57,17 +56,16 @@ export class SavedQueries extends React.Component<Props, State> {
         disableBuiltInSearches: false,
     }
 
-    private componentUpdates = new Subject<Props>()
+    private refreshRequests = new Subject<void>()
     private subscriptions = new Subscription()
 
     public componentDidMount(): void {
         const isHomepage = this.props.location.pathname === '/search'
 
         this.subscriptions.add(
-            this.componentUpdates
+            this.refreshRequests
                 .pipe(
-                    map(({ settingsCascade }) => settingsCascade),
-                    distinctUntilChanged((a, b) => isEqual(a, b)),
+                    startWith(void 0),
                     switchMap(fetchSavedQueries),
                     map(savedQueries => ({
                         savedQueries: savedQueries.filter(query => !isHomepage || query.showOnHomepage).sort((a, b) => {
@@ -95,10 +93,6 @@ export class SavedQueries extends React.Component<Props, State> {
                     })
                 })
         )
-    }
-
-    public componentWillReceiveProps(newProps: Props): void {
-        this.componentUpdates.next(newProps)
     }
 
     public componentWillUnmount(): void {
@@ -195,6 +189,8 @@ export class SavedQueries extends React.Component<Props, State> {
                             key={`${savedQuery.query}-${i}`}
                             savedQuery={savedQuery}
                             onDidDuplicate={this.onDidDuplicateSavedQuery}
+                            onDidUpdate={this.onDidUpdate}
+                            settingsCascade={this.props.settingsCascade}
                             isLightTheme={this.props.isLightTheme}
                         />
                     ))}
@@ -246,7 +242,7 @@ export class SavedQueries extends React.Component<Props, State> {
 
     private onDidCreateSavedQuery = () => {
         eventLogger.log('SavedQueryCreated')
-        this.setState({ isCreating: false, exampleQuery: null })
+        this.setState({ isCreating: false, exampleQuery: null }, () => this.onDidUpdate())
     }
 
     private onDidDuplicateSavedQuery = () => {
@@ -256,6 +252,8 @@ export class SavedQueries extends React.Component<Props, State> {
     private onDidClickQueryHelp = () => {
         eventLogger.log('SavedQueriesHelpButtonClicked')
     }
+
+    private onDidUpdate = () => this.refreshRequests.next()
 }
 
 export class SavedQueriesPage extends SavedQueries {

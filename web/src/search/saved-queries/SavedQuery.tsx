@@ -5,12 +5,13 @@ import * as React from 'react'
 import { Subject, Subscription } from 'rxjs'
 import { startWith, switchMap, withLatestFrom } from 'rxjs/operators'
 import * as GQL from '../../../../shared/src/graphql/schema'
+import { SettingsCascadeProps } from '../../../../shared/src/settings/settings'
 import { eventLogger } from '../../tracking/eventLogger'
 import { createSavedQuery, deleteSavedQuery } from '../backend'
 import { SavedQueryRow } from './SavedQueryRow'
 import { SavedQueryUpdateForm } from './SavedQueryUpdateForm'
 
-interface Props {
+interface Props extends SettingsCascadeProps {
     authenticatedUser: GQL.IUser | null
     savedQuery: GQL.ISavedQuery
     onDidUpdate?: () => void
@@ -49,6 +50,7 @@ export class SavedQuery extends React.PureComponent<Props, State> {
                     switchMap(([, props]) =>
                         createSavedQuery(
                             props.savedQuery.subject,
+                            1234, // TODO!(sqs): get lastID
                             duplicate(props.savedQuery.description),
                             props.savedQuery.query,
                             props.savedQuery.showOnHomepage,
@@ -58,9 +60,12 @@ export class SavedQuery extends React.PureComponent<Props, State> {
                     )
                 )
                 .subscribe(
-                    newSavedQuery => {
+                    () => {
                         if (this.props.onDidDuplicate) {
                             this.props.onDidDuplicate()
+                        }
+                        if (this.props.onDidUpdate) {
+                            this.props.onDidUpdate()
                         }
                     },
                     err => {
@@ -73,12 +78,21 @@ export class SavedQuery extends React.PureComponent<Props, State> {
             this.deleteRequested
                 .pipe(
                     withLatestFrom(propsChanges),
-                    switchMap(([, props]) => deleteSavedQuery(props.savedQuery.subject, props.savedQuery.id))
+                    switchMap(([, props]) =>
+                        deleteSavedQuery(
+                            props.savedQuery.subject,
+                            1234 /* TODO!(sqs): get lastID */,
+                            props.savedQuery.id
+                        )
+                    )
                 )
                 .subscribe(
                     () => {
                         if (this.props.onDidDelete) {
                             this.props.onDidDelete()
+                        }
+                        if (this.props.onDidUpdate) {
+                            this.props.onDidUpdate()
                         }
                     },
                     err => {
@@ -134,6 +148,7 @@ export class SavedQuery extends React.PureComponent<Props, State> {
                                 savedQuery={this.props.savedQuery}
                                 onDidUpdate={this.onDidUpdateSavedQuery}
                                 onDidCancel={this.toggleEditing}
+                                settingsCascade={this.props.settingsCascade}
                             />
                         </div>
                     )

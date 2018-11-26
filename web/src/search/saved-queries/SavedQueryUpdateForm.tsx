@@ -1,13 +1,12 @@
 import * as React from 'react'
 import { Observable } from 'rxjs'
-import { mergeMap, tap } from 'rxjs/operators'
+import { mergeMap } from 'rxjs/operators'
 import * as GQL from '../../../../shared/src/graphql/schema'
-import { PlatformContextProps } from '../../../../shared/src/platform/context'
-import { settingsRefreshes } from '../../user/settings/backend'
+import { SettingsCascadeProps } from '../../../../shared/src/settings/settings'
 import { createSavedQuery, deleteSavedQuery, updateSavedQuery } from '../backend'
 import { SavedQueryFields, SavedQueryForm } from './SavedQueryForm'
 
-interface Props extends PlatformContextProps {
+interface Props extends SettingsCascadeProps {
     authenticatedUser: GQL.IUser | null
     savedQuery: GQL.ISavedQuery
     onDidUpdate: () => void
@@ -50,10 +49,7 @@ function updateSavedQueryFromForm(props: Props, fields: SavedQueryFields): Obser
             fields.notify,
             fields.notifySlack,
             true
-        ).pipe(
-            mergeMap(() => deleteSavedQuery(props.savedQuery.subject, lastIDDummy, props.savedQuery.id, true)),
-            tap(() => settingsRefreshes.next())
-        )
+        ).pipe(mergeMap(() => deleteSavedQuery(props.savedQuery.subject, lastIDDummy, props.savedQuery.id, true)))
     }
 
     // Otherwise, it's just a simple update.
@@ -66,5 +62,5 @@ function updateSavedQueryFromForm(props: Props, fields: SavedQueryFields): Obser
         fields.showOnHomepage,
         fields.notify,
         fields.notifySlack
-    ).pipe(tap(() => settingsRefreshes.next()))
+    )
 }

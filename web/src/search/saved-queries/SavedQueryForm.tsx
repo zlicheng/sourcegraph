@@ -1,12 +1,11 @@
 import CloseIcon from 'mdi-react/CloseIcon'
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import { from, fromEvent, Observable, Subscription } from 'rxjs'
+import { from, fromEvent, Observable, Subject, Subscription } from 'rxjs'
 import { catchError, filter, map } from 'rxjs/operators'
 import { Key } from 'ts-key-enum'
 import * as GQL from '../../../../shared/src/graphql/schema'
-import { PlatformContextProps } from '../../../../shared/src/platform/context'
-import { isSettingsValid, SettingsSubject } from '../../../../shared/src/settings/settings'
+import { isSettingsValid, SettingsCascadeProps, SettingsSubject } from '../../../../shared/src/settings/settings'
 import { Form } from '../../components/Form'
 import { eventLogger } from '../../tracking/eventLogger'
 
@@ -19,7 +18,7 @@ export interface SavedQueryFields {
     notifySlack: boolean
 }
 
-interface Props extends PlatformContextProps {
+interface Props extends SettingsCascadeProps {
     authenticatedUser: GQL.IUser | null
     defaultValues?: Partial<SavedQueryFields>
     title?: string
@@ -47,6 +46,7 @@ export class SavedQueryForm extends React.Component<Props, State> {
     private handleNotifyChange = this.createInputChangeHandler('notify')
     private handleNotifySlackChange = this.createInputChangeHandler('notifySlack')
 
+    private componentUpdates = new Subject<Props>()
     private subscriptions = new Subscription()
 
     constructor(props: Props) {
@@ -73,9 +73,9 @@ export class SavedQueryForm extends React.Component<Props, State> {
 
     public componentDidMount(): void {
         this.subscriptions.add(
-            from(this.props.platformContext.environment)
+            from(this.componentUpdates)
                 .pipe(
-                    map(({ configuration }) => configuration),
+                    map(({ settingsCascade }) => settingsCascade),
                     filter(isSettingsValid)
                 )
                 .subscribe(settingsCascade => {
@@ -113,6 +113,12 @@ export class SavedQueryForm extends React.Component<Props, State> {
                 .pipe(filter(event => !this.state.isFocused && event.key === Key.Escape && !this.state.isSubmitting))
                 .subscribe(() => this.props.onDidCancel())
         )
+
+        this.componentUpdates.next(this.props)
+    }
+
+    public componentDidUpdate(): void {
+        this.componentUpdates.next(this.props)
     }
 
     public componentWillUnmount(): void {
