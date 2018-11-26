@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { render } from 'react-dom'
 import { combineLatest, from, Observable, Subscribable, Unsubscribable } from 'rxjs'
-import { filter, take } from 'rxjs/operators'
+import { filter, map, take } from 'rxjs/operators'
 import { ContributableMenu } from '../../../../../shared/src/api/protocol'
 import { TextDocumentDecoration } from '../../../../../shared/src/api/protocol/plainTypes'
 import { CommandListPopoverButton } from '../../../../../shared/src/commandPalette/CommandList'
@@ -35,7 +35,10 @@ function createControllers(context: PlatformContext): Controllers {
 
     combineLatest(
         viewerConfiguredExtensions(platformContext),
-        from(platformContext.settingsCascade).pipe(filter(isSettingsValid)),
+        from(platformContext.environment).pipe(
+            map(({ configuration }) => configuration),
+            filter(isSettingsValid)
+        ),
         from(context.environment)
     ).subscribe(([extensions, configuration, { roots, visibleTextDocuments }]) => {
         // TODO!2(sqs): fix weird subscription-in-subscription
