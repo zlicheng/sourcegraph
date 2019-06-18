@@ -129,8 +129,10 @@ type Response struct {
 type FileMatch struct {
 	Path        string
 	LineMatches []LineMatch
+	Matches     []Match
 
-	// LimitHit is true if LineMatches may not include all LineMatches.
+	// LimitHit is true if LineMatches may not include all LineMatches or if Matches may not include
+	// all matches.
 	LimitHit bool
 }
 
@@ -149,4 +151,17 @@ type LineMatch struct {
 
 	// LimitHit is true if OffsetAndLengths may not include all OffsetAndLengths.
 	LimitHit bool
+}
+
+// Match describes a search result that spans one or more lines.
+type Match struct {
+	Start, End Position // the start and end positions of the match
+}
+
+// Position describes a position in a file. It encodes both the line/character and the offset to
+// efficiently support clients that need one or the other.
+type Position struct {
+	Line      int // 0-indexed line number
+	Character int // 0-indexed character on the line
+	Offset    int // 0-indexed character offset from the start of the file
 }

@@ -283,6 +283,7 @@ export class QueryInput extends React.Component<Props, State> {
             <div className="query-input">
                 <MultilineTextField
                     className="form-control query-input__input rounded-left e2e-query-input"
+                    newlineOnShiftEnterKeypress={true}
                     value={this.props.value}
                     autoFocus={this.props.autoFocus === true}
                     onChange={this.onInputChange}

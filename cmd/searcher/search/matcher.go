@@ -40,6 +40,9 @@ const (
 	// maxOffsets is the limit on number of matches to return on a line.
 	maxOffsets = 10
 
+	// maxMatches is the limit on number of matches in a file.
+	maxMatches = maxLineMatches * maxOffsets
+
 	// numWorkers is how many concurrent readerGreps run per
 	// concurrentFind
 	numWorkers = 8
@@ -181,7 +184,7 @@ func (rg *readerGrep) matchString(s string) bool {
 // Find returns a LineMatch for each line that matches rg in reader.
 // LimitHit is true if some matches may not have been included in the result.
 // NOTE: This is not safe to use concurrently.
-func (rg *readerGrep) Find(zf *store.ZipFile, f *store.SrcFile) (matches []protocol.LineMatch, limitHit bool, err error) {
+func (rg *readerGrep) Find(zf *store.ZipFile, f *store.SrcFile) (matches []protocol.Match, lineMatches []protocol.LineMatch, limitHit bool, err error) {
 	if rg.ignoreCase && rg.transformBuf == nil {
 		rg.transformBuf = make([]byte, zf.MaxLen)
 	}
@@ -216,8 +219,20 @@ func (rg *readerGrep) Find(zf *store.ZipFile, f *store.SrcFile) (matches []proto
 		return nil, false, nil
 	}
 
+	lineMatches, limitHit, err = rg.FindSingleLineMatches(first[0], fileBuf, fileMatchBuf)
+	if err == nil && !limitHit {
+		matches, limitHit, err = rg.FindMultiLineMatches(first[0], fileBuf, fileMatchBuf)
+	}
+	return matches, lineMatches, limitHit, err
+}
+
+// FindSingleLineMatches returns a LineMatch for each line that matches rg in reader (matching
+// within single lines only, not including matches that span more than 1 line). LimitHit is true if
+// some matches may not have been included in the result. NOTE: This is not safe to use
+// concurrently.
+func (rg *readerGrep) FindSingleLineMatches(first int, fileBuf, fileMatchBuf []byte) (lineMatches []protocol.LineMatch, limitHit bool, err error) {
 	idx := 0
-	for i := 0; len(matches) < maxLineMatches; i++ {
+	for i := 0; len(lineMatches) < maxLineMatches; i++ {
 		advance, lineBuf, err := bufio.ScanLines(fileBuf, true)
 		if err != nil {
 			// ScanLines should never return an err
@@ -257,7 +272,7 @@ func (rg *readerGrep) Find(zf *store.ZipFile, f *store.SrcFile) (matches []proto
 				length := utf8.RuneCount(lineBuf[start:end])
 				offsetAndLengths[i] = [2]int{offset, length}
 			}
-			matches = append(matches, protocol.LineMatch{
+			lineMatches = append(lineMatches, protocol.LineMatch{
 				// making a copy of lineBuf is intentional.
 				// we are not allowed to use the fileBuf data after the ZipFile has been Closed,
 				// which currently occurs before Preview has been serialized.
@@ -271,7 +286,28 @@ func (rg *readerGrep) Find(zf *store.ZipFile, f *store.SrcFile) (matches []proto
 			})
 		}
 	}
-	limitHit = len(matches) == maxLineMatches
+	limitHit = len(lineMatches) == maxLineMatches
+	return lineMatches, limitHit, nil
+}
+
+// FindMultiLineMatches returns all matches for rg in reader, with support for matches that span
+// lines. LimitHit is true if some matches may not have been included in the result. NOTE: This is
+// not safe to use concurrently.
+func (rg *readerGrep) FindMultiLineMatches(first int, fileBuf, fileMatchBuf []byte) (matches []protocol.Match, limitHit bool, err error) {
+	locs := rg.re.FindAllIndex(fileMatchBuf, maxMatches)
+	matches = make([]protocol.Match, len(locs))
+	for i, match := range locs {
+		start, end := match[0], match[1]
+		offset := utf8.RuneCount(fileMatchBuf[:start]) // TODO!(sqs): optimize
+		length := utf8.RuneCount(fileMatchBuf[start:end])
+
+		matches[i] = protocol.Match{
+			Start: protocol.Position{Line: 1, Character: 2, Offset: 3},
+			End:   protocol.Position{Line: 4, Character: 5, Offset: 6},
+		}
+	}
+
+	limitHit = len(matches) == maxMatches
 	return matches, limitHit, nil
 }
 

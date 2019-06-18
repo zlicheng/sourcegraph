@@ -133,6 +133,11 @@ main.go:6:	fmt.Println("Hello world")
 		{protocol.PatternInfo{Pattern: "", IsRegExp: false, IncludePatterns: []string{"\\.png"}, PathPatternsAreRegExps: true, PatternMatchesPath: true}, `
 milton.png
 `},
+
+		{protocol.PatternInfo{Pattern: "main\n\nimport"}, `
+main.go:2:import "fmt"`},
+		{protocol.PatternInfo{Pattern: "main\n\nimport", IsRegExp: true}, `
+main.go:2:import "fmt"`},
 	}
 
 	store, cleanup, err := newStore(files)
@@ -147,6 +152,9 @@ milton.png
 	defer s.Close()
 
 	for i, test := range cases {
+		if i != len(cases)-1 && i != len(cases)-2 {
+			continue
+		}
 		test.arg.PatternMatchesContent = true
 		req := protocol.Request{
 			Repo:         "foo",
