@@ -25,10 +25,6 @@ echo "--- Running a daemonized $IMAGE as the test subject..."
 CONTAINER="$(docker container run -d -e DEPLOY_TYPE=dev -p 7080:7080 $IMAGE)"
 trap 'kill $(jobs -p -r)'" ; docker logs --timestamps $CONTAINER ; docker container rm -f $CONTAINER ; docker image rm -f $IMAGE" EXIT
 
-echo "--- yarn"
-# mutex is necessary since CI runs various yarn installs in parallel
-yarn --mutex network
-
 echo "--- Waiting for daemonized $IMAGE to be up..."
 set +e
 timeout 60s bash -c "until curl --output /dev/null --silent --head --fail $URL; do

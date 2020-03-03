@@ -16,8 +16,6 @@ steps:
   - ./cmd/server/build.sh
   - popd
   - ./dev/ci/e2e.sh
-  env:
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
   label: ':docker::chromium:'
   artifact_paths: ./puppeteer/*.png;./web/e2e.mp4;./web/ffmpeg.log
   agents:
