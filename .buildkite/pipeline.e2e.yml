@@ -9,28 +9,16 @@ env:
 
 steps:
 - command:
+  # todo: needed?
   - yes | gcloud auth configure-docker
   - pushd enterprise
   - ./cmd/server/pre-build.sh
   - ./cmd/server/build.sh
   - popd
-  - docker push "$IMAGE"
+  - ./dev/ci/e2e.sh
   env:
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
-  label: ':docker:'
-
-- wait
-
-- artifact_paths: ./puppeteer/*.png;./web/e2e.mp4;./web/ffmpeg.log
-  command:
-    - yes | gcloud auth configure-docker
-    - ./dev/ci/e2e.sh
-  concurrency: 1
-  concurrency_group: e2e
-  label: ':chromium:'
-
-- wait
-
-- command: docker image rm -f "$IMAGE"
-  label: ':sparkles:'
-  soft_fail: true
+  label: ':docker::chromium:'
+  artifact_paths: ./puppeteer/*.png;./web/e2e.mp4;./web/ffmpeg.log
+  agents:
+    queue: e2e

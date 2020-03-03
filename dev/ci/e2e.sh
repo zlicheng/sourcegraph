@@ -21,20 +21,15 @@ export DOCKER_HOST="$E2E_DOCKER_HOST"
 export DOCKER_PASSWORD="$E2E_DOCKER_PASSWORD"
 export DOCKER_USERNAME="$E2E_DOCKER_USERNAME"
 
-echo "--- Copying $IMAGE to the dedicated e2e testing node..."
-docker pull $IMAGE
-echo "Copying $IMAGE to the dedicated e2e testing node... done"
-
 echo "--- Running a daemonized $IMAGE as the test subject..."
-CONTAINER="$(docker container run -d -e DEPLOY_TYPE=dev $IMAGE)"
+CONTAINER="$(docker container run -d -e -p 7080:7080 DEPLOY_TYPE=dev $IMAGE)"
 trap 'kill $(jobs -p -r)'" ; docker logs --timestamps $CONTAINER ; docker container rm -f $CONTAINER ; docker image rm -f $IMAGE" EXIT
 
-docker exec "$CONTAINER" apk add --no-cache socat
-# Connect the server container's port 7080 to localhost:7080 so that e2e tests
-# can hit it. This is similar to port-forwarding via SSH tunneling, but uses
-# docker exec as the transport.
-socat tcp-listen:7080,reuseaddr,fork system:"docker exec -i $CONTAINER socat stdio 'tcp:localhost:7080'" &
+echo "--- yarn"
+# mutex is necessary since CI runs various yarn installs in parallel
+yarn --mutex network
 
+echo "--- Waiting for daemonized $IMAGE to be up..."
 set +e
 timeout 60s bash -c "until curl --output /dev/null --silent --head --fail $URL; do
     echo Waiting 5s for $URL...
@@ -48,10 +43,6 @@ if [ $? -ne 0 ]; then
 fi
 set -e
 echo "Waiting for $URL... done"
-
-echo "--- yarn"
-# mutex is necessary since CI runs various yarn installs in parallel
-yarn --mutex network
 
 echo "--- yarn run test-e2e"
 pushd web
