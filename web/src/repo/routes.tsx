@@ -104,11 +104,7 @@ export const repoRevContainerRoutes: readonly RepoRevContainerRoute[] = [
                 filePath: string | undefined
             }>) => {
             const objectType: 'blob' | 'tree' = match.params.objectType || 'tree'
-
-            // The decoding depends on the pinned `history` version.
-            // See https://github.com/sourcegraph/sourcegraph/issues/4408
-            // and https://github.com/ReactTraining/history/issues/505
-            const filePath = decodeURIComponent(match.params.filePath || '') // empty string is root
+            const filePath = match.params.filePath || '' // empty string is root
 
             const mode = getModeFromPath(filePath)
 

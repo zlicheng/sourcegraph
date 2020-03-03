@@ -10,12 +10,14 @@ import { FiltersToTypeAndValue, FilterType } from '../../../shared/src/search/in
 import { NonFilterSuggestionType } from '../../../shared/src/search/suggestions/util'
 import { isolatedFuzzySearchFiltersFilterType } from './input/interactive/filters'
 
+export type SearchQueryLocationState = null | undefined | { query?: string }
+
 /**
  * @param activation If set, records the DidSearch activation event for the new user activation
  * flow.
  */
 export function submitSearch(
-    history: H.History,
+    history: H.History<SearchQueryLocationState>,
     navbarQuery: string,
     source: 'home' | 'nav' | 'repo' | 'tree' | 'filter' | 'type',
     patternType: GQL.SearchPatternType,
