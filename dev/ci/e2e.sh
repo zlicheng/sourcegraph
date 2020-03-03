@@ -22,7 +22,7 @@ export DOCKER_PASSWORD="$E2E_DOCKER_PASSWORD"
 export DOCKER_USERNAME="$E2E_DOCKER_USERNAME"
 
 echo "--- Running a daemonized $IMAGE as the test subject..."
-CONTAINER="$(docker container run -d -e -p 7080:7080 DEPLOY_TYPE=dev $IMAGE)"
+CONTAINER="$(docker container run -d -e DEPLOY_TYPE=dev -p 7080:7080 $IMAGE)"
 trap 'kill $(jobs -p -r)'" ; docker logs --timestamps $CONTAINER ; docker container rm -f $CONTAINER ; docker image rm -f $IMAGE" EXIT
 
 echo "--- yarn"
