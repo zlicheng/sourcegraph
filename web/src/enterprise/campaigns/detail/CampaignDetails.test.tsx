@@ -6,6 +6,8 @@ import * as H from 'history'
 import { createRenderer } from 'react-test-renderer/shallow'
 import { of } from 'rxjs'
 import { CampaignStatusProps } from './CampaignStatus'
+import { eventLogger } from '../../../tracking/eventLogger'
+import sinon from 'sinon'
 
 jest.mock('./form/CampaignTitleField', () => ({ CampaignTitleField: 'CampaignTitleField' }))
 jest.mock('./form/CampaignDescriptionField', () => ({ CampaignDescriptionField: 'CampaignDescriptionField' }))
@@ -19,6 +21,18 @@ jest.mock('../icons', () => ({ CampaignsIcon: 'CampaignsIcon' }))
 const history = H.createMemoryHistory()
 
 describe('CampaignDetails', () => {
+    let stub: sinon.SinonStub<[string, (boolean | undefined)?], void>
+
+    beforeAll(() => {
+        stub = sinon.stub(eventLogger, 'logViewEvent')
+    })
+
+    afterAll(() => {
+        if (stub) {
+            stub.restore()
+        }
+    })
+
     test('creation form for empty manual campaign', () =>
         expect(
             createRenderer().render(
