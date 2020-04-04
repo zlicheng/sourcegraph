@@ -73,7 +73,7 @@ func (node Operator) String() string {
 		kind = "concat"
 	}
 
-	return fmt.Sprintf("(%s %s)", kind, strings.Join(result, " "))
+	return fmt.Sprintf("(%s %s)", kind, strings.Join(result, "~"))
 }
 
 type keyword string
@@ -101,9 +101,10 @@ func skipSpace(buf []byte) int {
 }
 
 type parser struct {
-	buf      []byte
-	pos      int
-	balanced int
+	buf         []byte
+	pos         int
+	balanced    int
+	doHeuristic bool
 }
 
 func (p *parser) done() bool {
@@ -191,6 +192,10 @@ func ScanParameter(parameter []byte) Parameter {
 // expression group. For example, In the regex foo(a|b)bar, we want to preserve
 // parentheses as part of the pattern.
 func (p *parser) ParseSearchPatternWithParens() (Parameter, bool) {
+	// FIXME: make this scan spaces, then return a concat.
+	if !p.doHeuristic {
+		return Parameter{Field: "", Value: ""}, false
+	}
 	start := p.pos
 	balanced := 0
 	for {
@@ -208,7 +213,8 @@ func (p *parser) ParseSearchPatternWithParens() (Parameter, bool) {
 		if p.done() {
 			break
 		}
-		if isSpace(p.buf[p.pos]) {
+		if isSpace(p.buf[p.pos]) && balanced == 0 {
+			// balanced parens at any point of a true whitespace means we can stop scanning. Now we need to check the "repo:foo" part.
 			break
 		}
 		p.pos++
@@ -218,7 +224,26 @@ func (p *parser) ParseSearchPatternWithParens() (Parameter, bool) {
 		p.pos = start // Backtrack.
 		return Parameter{Field: "", Value: ""}, false
 	}
-	return ScanParameter(p.buf[start:p.pos]), true
+	// it's balanced, so it's parsable. but disable the heuristic.
+	result, err := parseAndOr(string(p.buf[start:p.pos]), false)
+	if err != nil {
+		// this is not an and/or query. But it's balanced. So it could be something like
+		// (foo or). Hard to say if we should accept it or not. Reject for now
+		p.pos = start // Backtrack.
+		return Parameter{Field: "", Value: ""}, false
+	}
+	if !isPatternExpression(newOperator(result, Concat)[0]) { // dangerous index if empty
+		// contains repo:foo type stuff.
+		p.pos = start // Backtrack.
+		return Parameter{Field: "", Value: ""}, false
+	}
+	if containsAndOrExpression(result) {
+		// not pure.
+		p.pos = start // Backtrack.
+		return Parameter{Field: "", Value: ""}, false
+	}
+	// this thing may only be a concat node or flat something
+	return Parameter{Field: "", Value: string(p.buf[start:p.pos])}, true
 }
 
 // ParseParameter returns valid leaf node values for AND/OR queries, taking into
@@ -261,6 +286,17 @@ func Visit(nodes []Node, f func(node Node)) {
 	}
 }
 
+// VisitOperator calls f on all operator nodes. f supplies the node's field,
+// value, and whether the value is negated.
+func VisitOperator(nodes []Node, f func(kind operatorKind, operands []Node)) {
+	visitor := func(node Node) {
+		if v, ok := node.(Operator); ok {
+			f(v.Kind, v.Operands)
+		}
+	}
+	Visit(nodes, visitor)
+}
+
 // VisitParameter calls f on all parameter nodes. f supplies the node's field,
 // value, and whether the value is negated.
 func VisitParameter(nodes []Node, f func(field, value string, negated bool)) {
@@ -289,6 +325,17 @@ func containsPattern(node Node) bool {
 	var result bool
 	VisitField([]Node{node}, "", func(_ string, _ bool) {
 		result = true
+	})
+	return result
+}
+
+// returns true if descendent of node contains and/or expressions.
+func containsAndOrExpression(nodes []Node) bool {
+	var result bool
+	VisitOperator(nodes, func(kind operatorKind, _ []Node) {
+		if kind == And || kind == Or {
+			result = true
+		}
 	})
 	return result
 }
@@ -477,11 +524,11 @@ func (p *parser) parseOr() ([]Node, error) {
 }
 
 // Parse parses a raw input string into a parse tree comprising Nodes.
-func parseAndOr(in string) ([]Node, error) {
+func parseAndOr(in string, doHeuristic bool) ([]Node, error) {
 	if in == "" {
 		return nil, nil
 	}
-	parser := &parser{buf: []byte(in)}
+	parser := &parser{buf: []byte(in), doHeuristic: doHeuristic}
 	nodes, err := parser.parseOr()
 	if err != nil {
 		return nil, err
@@ -493,7 +540,7 @@ func parseAndOr(in string) ([]Node, error) {
 }
 
 func ParseAndOr(in string) (QueryInfo, error) {
-	query, err := parseAndOr(in)
+	query, err := parseAndOr(in, true)
 	if err != nil {
 		return nil, err
 	}
