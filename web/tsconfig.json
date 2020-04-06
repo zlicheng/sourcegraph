@@ -12,5 +12,5 @@
     "outDir": "out",
   },
   "include": ["./**/*"],
-  "exclude": ["../node_modules", "./node_modules", "./out", "src/e2e", "src/regression"],
+  "exclude": ["../node_modules", "./node_modules", "./out", "src/e2e", "src/regression", "src/integration"],
 }
