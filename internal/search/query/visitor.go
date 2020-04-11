@@ -1,52 +1,78 @@
 package query
 
-// VisitNode calls f on all nodes rooted at node.
-func VisitNode(node Node, f func(node Node)) {
-	switch v := node.(type) {
-	case Parameter:
-		f(v)
-	case Operator:
-		f(v)
-		Visit(v.Operands, f)
-	}
+type Visitor interface {
+	VisitNodes(v Visitor, node []Node)
+	VisitOperator(v Visitor, kind operatorKind, operands []Node)
+	VisitParameter(v Visitor, field, value string, negated bool)
 }
 
-// Visit calls f on all nodes rooted at nodes.
-func Visit(nodes []Node, f func(node Node)) {
+type BaseVisitor struct{}
+
+func (_ *BaseVisitor) VisitNodes(visitor Visitor, nodes []Node) {
 	for _, node := range nodes {
-		VisitNode(node, f)
+		switch v := node.(type) {
+		case Parameter:
+			visitor.VisitParameter(visitor, v.Field, v.Value, v.Negated)
+		case Operator:
+			visitor.VisitOperator(visitor, v.Kind, v.Operands)
+		}
 	}
 }
 
-// VisitOperator calls f on all operator nodes. f supplies the node's field,
+func (_ *BaseVisitor) VisitOperator(visitor Visitor, kind operatorKind, operands []Node) {
+	visitor.VisitNodes(visitor, operands)
+}
+
+func (_ *BaseVisitor) VisitParameter(visitor Visitor, field, value string, negated bool) {}
+
+type OperatorVisitor struct {
+	callback func(kind operatorKind, operands []Node)
+	BaseVisitor
+}
+
+func (s *OperatorVisitor) VisitOperator(visitor Visitor, kind operatorKind, operands []Node) {
+	s.callback(kind, operands)
+	visitor.VisitNodes(visitor, operands)
+}
+
+// VisitOperator calls callback on all operator nodes. callback supplies the
+// node's kind and operands.
+func VisitOperator(nodes []Node, callback func(kind operatorKind, operands []Node)) {
+	visitor := &OperatorVisitor{callback: callback}
+	visitor.VisitNodes(visitor, nodes)
+}
+
+type ParameterVisitor struct {
+	callback func(field, value string, negated bool)
+	BaseVisitor
+}
+
+func (s *ParameterVisitor) VisitParameter(visitor Visitor, field, value string, negated bool) {
+	s.callback(field, value, negated)
+}
+
+// VisitParameter calls callback on all parameter nodes. callback supplies the node's field,
 // value, and whether the value is negated.
-func VisitOperator(nodes []Node, f func(kind operatorKind, operands []Node)) {
-	visitor := func(node Node) {
-		if v, ok := node.(Operator); ok {
-			f(v.Kind, v.Operands)
-		}
-	}
-	Visit(nodes, visitor)
+func VisitParameter(nodes []Node, callback func(field, value string, negated bool)) {
+	visitor := &ParameterVisitor{callback: callback}
+	visitor.VisitNodes(visitor, nodes)
 }
 
-// VisitParameter calls f on all parameter nodes. f supplies the node's field,
-// value, and whether the value is negated.
-func VisitParameter(nodes []Node, f func(field, value string, negated bool)) {
-	visitor := func(node Node) {
-		if v, ok := node.(Parameter); ok {
-			f(v.Field, v.Value, v.Negated)
-		}
-	}
-	Visit(nodes, visitor)
+type FieldVisitor struct {
+	field    string
+	callback func(value string, negated bool)
+	BaseVisitor
 }
 
-// VisitField calls f on all parameter nodes whose field matches the field
-// argument. f supplies the node's value and whether the value is negated.
-func VisitField(nodes []Node, field string, f func(value string, negated bool)) {
-	visitor := func(visitedField, value string, negated bool) {
-		if field == visitedField {
-			f(value, negated)
-		}
+func (s *FieldVisitor) VisitParameter(visitor Visitor, field, value string, negated bool) {
+	if s.field == field {
+		s.callback(value, negated)
 	}
-	VisitParameter(nodes, visitor)
+}
+
+// VisitField calls callback on all parameter nodes whose field matches the field
+// argument. callback supplies the node's value and whether the value is negated.
+func VisitField(nodes []Node, field string, callback func(value string, negated bool)) {
+	visitor := &FieldVisitor{callback: callback, field: field}
+	visitor.VisitNodes(visitor, nodes)
 }
