@@ -20,6 +20,8 @@ func (*BaseVisitor) VisitNodes(visitor Visitor, nodes []Node) {
 			visitor.VisitParameter(visitor, v.Field, v.Value, v.Negated)
 		case Operator:
 			visitor.VisitOperator(visitor, v.Kind, v.Operands)
+		default:
+			panic("unreachable")
 		}
 	}
 }
