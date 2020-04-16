@@ -70,6 +70,34 @@ func VisitParameter(nodes []Node, callback func(field, value string, negated boo
 	visitor.VisitNodes(visitor, nodes)
 }
 
+// FinderVisitor is a helper visitor that terminates traversal when the callback
+// function is called in any overriding method.
+type FinderVisitor struct {
+	stop func() bool
+	BaseVisitor
+}
+
+func (s *FinderVisitor) VisitNodes(visitor Visitor, nodes []Node) {
+	for _, node := range nodes {
+		if s.stop() {
+			return
+		}
+		switch v := node.(type) {
+		case Parameter:
+			visitor.VisitParameter(visitor, v.Field, v.Value, v.Negated)
+		case Operator:
+			visitor.VisitOperator(visitor, v.Kind, v.Operands)
+		default:
+			panic("unreachable")
+		}
+	}
+}
+
+func VisitFinder(nodes []Node, stop func() bool) {
+	visitor := &FinderVisitor{stop: stop}
+	visitor.VisitNodes(visitor, nodes)
+}
+
 // FieldVisitor is a helper visitor that only visits parameter fields in a
 // query, for a specified field specified in the state. For each parameter with
 // this field name it calls the callback.
