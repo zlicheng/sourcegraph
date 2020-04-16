@@ -6,15 +6,17 @@ import (
 	"github.com/inconshreveable/log15"
 )
 
+type callback func(field, value string, negated bool) bool
+
 type CoolFinderVisitor struct {
-	stop     func() bool
-	callback func(field, value string, negated bool)
+	stop     bool
+	callback callback
 	BaseVisitor
 }
 
 func (s *CoolFinderVisitor) VisitNodes(visitor Visitor, nodes []Node) {
 	for _, node := range nodes {
-		if s.stop() {
+		if s.stop {
 			return
 		}
 		switch v := node.(type) {
@@ -29,21 +31,23 @@ func (s *CoolFinderVisitor) VisitNodes(visitor Visitor, nodes []Node) {
 }
 
 func (s *CoolFinderVisitor) VisitParameter(visitor Visitor, field, value string, negated bool) {
-	s.callback(field, value, negated)
+	if s.callback(field, value, negated) {
+		s.stop = true
+	}
 }
 
-func CoolVisitParameter(nodes []Node, stop func() bool, callback func(field, value string, negated bool)) {
-	visitor := &CoolFinderVisitor{callback: callback, stop: stop}
+func CoolVisitParameter(nodes []Node, callback callback) {
+	visitor := &CoolFinderVisitor{callback: callback}
 	visitor.VisitNodes(visitor, nodes)
 }
 
 func Test_VisitFinder(t *testing.T) {
 	q, _ := parseAndOr("repo:foo a or b and c repo:Bar")
-	wrong := func() bool { return true }
-	CoolVisitParameter(q, wrong, func(field, value string, _ bool) {
+	CoolVisitParameter(q, func(field, value string, _ bool) bool {
 		log15.Info("seen", "val", value)
 		if value == "a" {
-			// stop()
+			return true
 		}
+		return false
 	})
 }
