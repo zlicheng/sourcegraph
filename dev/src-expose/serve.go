@@ -191,19 +191,6 @@ func configureRepos(logger *log.Logger, root string) []string {
 		}
 		gitDirs = append(gitDirs, filepath.ToSlash(subpath))
 
-		// Check whether a repository is a bare repository or not.
-		//
-		// If it yields false, which means it is a non-bare repository,
-		// skip the directory so that it will not recurse to the subdirectories.
-		// If it is a bare repository, proceed to recurse.
-		c := exec.Command("git", "rev-parse", "--is-bare-repository")
-		c.Dir = gitdir
-		out, _ := c.CombinedOutput()
-
-		if string(out) == "false\n" {
-			return filepath.SkipDir
-		}
-
 		return nil
 	})
 

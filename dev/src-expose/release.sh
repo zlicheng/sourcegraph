@@ -13,6 +13,5 @@ CGO_ENABLED=0 GOOS=linux go build -trimpath -o linux-amd64/src-expose github.com
 CGO_ENABLED=0 GOOS=darwin go build -trimpath -o darwin-amd64/src-expose github.com/sourcegraph/sourcegraph/dev/src-expose
 cd -
 rm -rf src-expose/latest
-cp -r "src-expose/$(git rev-parse HEAD)" src-expose/latest
 gsutil cp -r src-expose gs://sourcegraph-artifacts
 gsutil iam ch allUsers:objectViewer gs://sourcegraph-artifacts
