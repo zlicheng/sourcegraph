@@ -108,7 +108,7 @@ export class MonacoSettingsEditor extends React.PureComponent<Props, State> {
                     minimap: { enabled: false },
                     formatOnType: true,
                     formatOnPaste: true,
-                    autoIndent: true,
+                    autoIndent: 'full',
                     renderIndentGuides: false,
                     glyphMargin: false,
                     folding: false,
@@ -116,7 +116,6 @@ export class MonacoSettingsEditor extends React.PureComponent<Props, State> {
                     scrollBeyondLastLine: false,
                     quickSuggestions: true,
                     quickSuggestionsDelay: 200,
-                    wordBasedSuggestions: false,
                     readOnly: this.props.readOnly,
                     wordWrap: 'on',
                 }}

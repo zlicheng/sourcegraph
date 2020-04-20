@@ -128,7 +128,6 @@ export class MonacoQueryInput extends React.PureComponent<MonacoQueryInputProps>
             folding: false,
             rulers: [],
             overviewRulerLanes: 0,
-            wordBasedSuggestions: false,
             quickSuggestions: false,
             fixedOverflowWidgets: true,
             contextmenu: false,
