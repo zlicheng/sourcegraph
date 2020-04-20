@@ -177,6 +177,11 @@ const config = {
         include: monacoEditorPaths,
         use: ['style-loader', 'css-loader'],
       },
+      // Needed for Monaco editor fonts
+      {
+        test: /\.ttf$/,
+        use: 'file-loader',
+      },
     ],
   },
 }
