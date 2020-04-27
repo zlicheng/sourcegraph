@@ -152,8 +152,8 @@ func addCodeCov(pipeline *bk.Pipeline) {
 		bk.Cmd("bash <(curl -s https://codecov.io/bash) -X gcov -X coveragepy -X xcode -F unit"))
 }
 
-// Release the browser extension.
-func addBrowserExtensionReleaseSteps(pipeline *bk.Pipeline) {
+// Run E2E tests of the browser extension.
+func addBrowserExtensionE2ESteps(pipeline *bk.Pipeline) {
 	for _, browser := range []string{"chrome", "firefox"} {
 		// Run e2e tests
 		pipeline.AddStep(fmt.Sprintf(":%s:", browser),
@@ -169,6 +169,11 @@ func addBrowserExtensionReleaseSteps(pipeline *bk.Pipeline) {
 			bk.Cmd("popd"),
 			bk.ArtifactPaths("./puppeteer/*.png"))
 	}
+}
+
+// Release the browser extension.
+func addBrowserExtensionReleaseSteps(pipeline *bk.Pipeline) {
+	addBrowserExtensionE2ESteps(pipeline)
 
 	pipeline.AddWait()
 

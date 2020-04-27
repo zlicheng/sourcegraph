@@ -83,6 +83,18 @@ func GeneratePipeline(c Config) (*bk.Pipeline, error) {
 			addBrowserExtensionReleaseSteps,
 		}
 
+	case c.isBextBranch:
+		// If this is a browser extension release branch, run the browser-extension tests and
+		// builds.
+		pipelineOperations = []func(*bk.Pipeline){
+			addLint,
+			addBrowserExt,
+			addSharedTests,
+			wait,
+			addCodeCov,
+			addBrowserExtensionE2ESteps,
+		}
+
 	case c.isQuick:
 		// Run fast steps only
 		pipelineOperations = []func(*bk.Pipeline){
