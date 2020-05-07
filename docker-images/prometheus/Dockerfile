@@ -12,7 +12,7 @@ RUN DOC_SOLUTIONS_FILE='' PROMETHEUS_DIR=/generated/prometheus GRAFANA_DIR='' /g
 # When upgrading prometheus, be sure to check https://github.com/prometheus/prometheus/blob/master/Dockerfile
 # (replacing master with the version number) to see if any changes (added/removed files, etc.) need to be
 # synchronized with this derivative Dockerfile.
-FROM prom/prometheus:v2.16.0@sha256:e4ca62c0d62f3e886e684806dfe9d4e0cda60d54986898173c1083856cfda0f4 AS upstream
+FROM prom/prometheus:v2.18.1@sha256:b4e6cd0275a26750505e539f8528e891053434ebd3972be02645bed5f02f0795 AS upstream
 
 # hadolint ignore=DL3007
 FROM quay.io/prometheus/busybox-linux-amd64:latest@sha256:0c38f63cbe19e40123668a48c36466ef72b195e723cbfcbe01e9657a5f14cec6

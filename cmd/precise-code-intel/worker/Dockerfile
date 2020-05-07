@@ -1,5 +1,5 @@
 # keep this in sync with docker-images/prometheus/Dockerfile
-FROM prom/prometheus:v2.15.2@sha256:35c52c0c2b76433bbfc44a5a7abc294c2f032ed80250be02b441db5dd91b203a AS prometheus
+FROM prom/prometheus:v2.18.1@sha256:b4e6cd0275a26750505e539f8528e891053434ebd3972be02645bed5f02f0795 AS prometheus
 
 FROM alpine:3.10@sha256:e4355b66995c96b4b468159fc5c7e3540fcef961189ca13fee877798649f531a AS precise-code-intel-builder
 
