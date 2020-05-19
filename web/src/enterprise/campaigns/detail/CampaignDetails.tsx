@@ -15,7 +15,6 @@ import {
     deleteCampaign,
     createCampaign,
     closeCampaign,
-    publishCampaign,
     fetchPatchSetById,
 } from './backend'
 import { useError, useObservable } from '../../../../../shared/src/util/useObservable'
@@ -213,6 +212,10 @@ export const CampaignDetails: React.FunctionComponent<Props> = ({
         setBranchModified(true)
     }, [])
 
+    const afterPublish = useCallback((): void => {
+        campaignUpdates.next()
+    }, [campaignUpdates])
+
     // Is loading
     if ((campaignID && campaign === undefined) || (patchSetID && patchSet === undefined)) {
         return (
@@ -269,19 +272,6 @@ export const CampaignDetails: React.FunctionComponent<Props> = ({
         } catch (err) {
             setMode('editing')
             setAlertError(asError(err))
-        }
-    }
-
-    const onPublish = async (): Promise<void> => {
-        setMode('publishing')
-        try {
-            await publishCampaign(campaign!.id)
-            setAlertError(undefined)
-            campaignUpdates.next()
-        } catch (err) {
-            setAlertError(asError(err))
-        } finally {
-            setMode('viewing')
         }
     }
 
@@ -401,7 +391,12 @@ export const CampaignDetails: React.FunctionComponent<Props> = ({
             />
             {alertError && <ErrorAlert error={alertError} history={history} />}
             {campaign && !patchSet && !['saving', 'editing'].includes(mode) && (
-                <CampaignStatus campaign={campaign} onPublish={onPublish} afterRetry={afterRetry} history={history} />
+                <CampaignStatus
+                    campaign={campaign}
+                    afterPublish={afterPublish}
+                    afterRetry={afterRetry}
+                    history={history}
+                />
             )}
             <Form id={campaignFormID} onSubmit={onSubmit} onReset={onCancel} className="e2e-campaign-form">
                 {['saving', 'editing'].includes(mode) && (

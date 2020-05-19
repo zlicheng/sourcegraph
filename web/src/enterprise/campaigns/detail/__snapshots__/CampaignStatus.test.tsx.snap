@@ -560,6 +560,7 @@ exports[`CampaignStatus viewerCanAdminister: true drafted campaign 1`] = `
     >
       <button
         className="btn btn-primary mb-0"
+        disabled={false}
         onClick={[Function]}
         type="button"
       >
@@ -587,6 +588,7 @@ exports[`CampaignStatus viewerCanAdminister: true drafted campaign, some publish
     >
       <button
         className="btn btn-primary mb-0"
+        disabled={false}
         onClick={[Function]}
         type="button"
       >

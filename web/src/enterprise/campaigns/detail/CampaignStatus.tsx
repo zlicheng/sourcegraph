@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import * as GQL from '../../../../../shared/src/graphql/schema'
 import { ErrorMessage } from '../../../components/alerts'
 import SyncIcon from 'mdi-react/SyncIcon'
 import { pluralize } from '../../../../../shared/src/util/strings'
-import { retryCampaign } from './backend'
+import { retryCampaign, publishCampaign } from './backend'
 import { asError, isErrorLike } from '../../../../../shared/src/util/errors'
 import { LoadingSpinner } from '@sourcegraph/react-loading-spinner'
 import ErrorIcon from 'mdi-react/ErrorIcon'
@@ -15,9 +15,9 @@ export interface CampaignStatusProps {
         status: Pick<GQL.ICampaign['status'], 'completedCount' | 'pendingCount' | 'errors' | 'state'>
     }
 
-    /** Called when the "Publish campaign" button is clicked. */
-    onPublish: () => void
-    /** Called when the "Retry failed jobs" button is clicked. */
+    /** Called after the "Publish campaign" button handler has run successfully. */
+    afterPublish: () => void
+    /** Called after the "Retry" button handler has run successfully. */
     afterRetry: (updatedCampaign: GQL.ICampaign) => void
     history: H.History
 }
@@ -29,7 +29,7 @@ type CampaignState = 'closed' | 'errored' | 'processing' | 'completed'
  */
 export const CampaignStatus: React.FunctionComponent<CampaignStatusProps> = ({
     campaign,
-    onPublish,
+    afterPublish,
     afterRetry,
     history,
 }) => {
@@ -74,6 +74,19 @@ export const CampaignStatus: React.FunctionComponent<CampaignStatusProps> = ({
         }
     }
 
+    const [isPublishing, setIsPublishing] = useState<boolean | Error>(false)
+
+    const onPublish = useCallback<React.MouseEventHandler>(async () => {
+        setIsPublishing(true)
+        try {
+            await publishCampaign(campaign.id)
+            setIsPublishing(false)
+            afterPublish()
+        } catch (error) {
+            setIsPublishing(asError(error))
+        }
+    }, [campaign.id, afterPublish])
+
     let statusIndicator: JSX.Element | undefined
     switch (state) {
         case 'errored':
@@ -87,7 +100,7 @@ export const CampaignStatus: React.FunctionComponent<CampaignStatusProps> = ({
                                 type="button"
                                 className="btn btn-primary mb-0"
                                 onClick={onRetry}
-                                disabled={isRetrying === true}
+                                disabled={isPublishing === true || isRetrying === true}
                             >
                                 {isErrorLike(isRetrying) && (
                                     <ErrorIcon data-tooltip={isRetrying.message} className="mr-2" />
@@ -137,7 +150,16 @@ export const CampaignStatus: React.FunctionComponent<CampaignStatusProps> = ({
                 <>
                     <div className="d-flex align-items-center alert alert-warning my-4">
                         {campaign.viewerCanAdminister && (
-                            <button type="button" className="btn btn-primary mb-0" onClick={onPublish}>
+                            <button
+                                type="button"
+                                className="btn btn-primary mb-0"
+                                onClick={onPublish}
+                                disabled={isPublishing === true || isRetrying === true}
+                            >
+                                {isErrorLike(isPublishing) && (
+                                    <ErrorIcon data-tooltip={isPublishing.message} className="mr-2" />
+                                )}
+                                {isPublishing === true && <LoadingSpinner className="icon-inline" />}
                                 Publish campaign
                             </button>
                         )}
