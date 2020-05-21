@@ -52,8 +52,26 @@ func NewWorker(
 	}
 }
 
+// TODO(efritz) - choose based on cores
+const numWorkers = 4
+
 func (w *Worker) Start() {
+	var wg sync.WaitGroup
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			w.run()
+		}()
+	}
+
+	wg.Wait()
+}
+
+func (w *Worker) run() {
 	for {
+		// TODO(efritz) - only dequeue for the memory we can reserve
 		if ok, _ := w.dequeueAndProcess(context.Background()); !ok {
 			select {
 			case <-time.After(w.pollInterval):
