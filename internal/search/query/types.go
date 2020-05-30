@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/inconshreveable/log15"
 	"github.com/sourcegraph/sourcegraph/internal/search/query/syntax"
 	"github.com/sourcegraph/sourcegraph/internal/search/query/types"
 )
@@ -180,6 +181,7 @@ func (q AndOrQuery) valueToTypedValue(field, value string, quoted bool) []*types
 		// If a pattern is quoted, or we applied heuristics to interpret
 		// valid regexp metasyntax literally instead, this pattern is a
 		// string.
+		log15.Info("v", "v", value)
 		if quoted || q.HeuristicsApplied[parensAsPatterns] {
 			return []*types.Value{{String: &value}}
 		}

@@ -167,6 +167,7 @@ var tests = []test{
 		Name:  `Literals, escaped and unescaped parens`,
 		Query: `repo:^github\.com/sourcegraph/sourcegraph$ (() or \(\)) stable:yes type:file count:1 file:^\.buildkite/hooks/pre-command$`,
 	},
+	// repo:^github\.com/sourcegraph/sourcegraph$ (\(\) or ()) // or is not being treated as expression --bad.
 	{
 		Name:  `Escape sequences`,
 		Query: `repo:^github\.com/sourcegraph/sourcegraph$ \' and \" and \\ and / file:^\.buildkite/hooks/pre-command$`,

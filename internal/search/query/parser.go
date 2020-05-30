@@ -8,6 +8,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/inconshreveable/log15"
 )
 
 type ExpectedOperand struct {
@@ -432,9 +434,9 @@ loop:
 					continue
 				}
 				switch r {
-				case 'a', 'b', 'f', 'v', '(', ')':
+				case 'a', 'b', 'f', 'v':
 					piece = append(piece, '\\', r)
-				case ':', '\\', '"', '\'':
+				case ':', '\\', '"', '\'', '(', ')':
 					piece = append(piece, r)
 				case 'n':
 					piece = append(piece, '\n')
@@ -480,7 +482,7 @@ func (p *parser) ParseSearchPatternHeuristic() (Node, bool) {
 	start := p.pos
 	pieces, advance, ok := ScanSearchPatternHeuristic(p.buf[p.pos:])
 	end := start + advance
-	if !ok || len(p.buf[start:end]) == 0 || !isPureSearchPattern(p.buf[start:end]) {
+	if !ok || len(p.buf[start:end]) == 0 || !isPureSearchPattern(p.buf[start:end]) || ContainsAndOrKeyword(string(p.buf[start:end])) {
 		// We tried validating the pattern but it is either unbalanced
 		// or malformed, empty, or an invalid and/or expression.
 		return Pattern{}, false
@@ -488,6 +490,7 @@ func (p *parser) ParseSearchPatternHeuristic() (Node, bool) {
 	// The heuristic succeeds: we can process the string as a pure search pattern.
 	p.pos += advance
 	p.heuristicsApplied[parensAsPatterns] = true
+	log15.Info("pieces", "p", pieces)
 	if len(pieces) == 1 {
 		return Pattern{Value: pieces[0]}, true
 	}
@@ -960,6 +963,8 @@ func ProcessAndOr(in string) (QueryInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log15.Info("heuristics", "h", heuristicsApplied)
 
 	return &AndOrQuery{Query: query, HeuristicsApplied: heuristicsApplied}, nil
 }
