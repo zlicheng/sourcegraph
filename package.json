@@ -79,7 +79,7 @@
     "@octokit/rest": "^16.36.0",
     "@percy/puppeteer": "^1.1.0",
     "@percy/storybook": "^3.3.0",
-    "@slack/web-api": "^5.8.1",
+    "@slack/web-api": "^5.10.0",
     "@sourcegraph/babel-plugin-transform-react-hot-loader-wrapper": "^1.0.0",
     "@sourcegraph/eslint-config": "^0.19.2",
     "@sourcegraph/prettierrc": "^3.0.3",
