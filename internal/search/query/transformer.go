@@ -157,6 +157,56 @@ func substituteOrForRegexp(nodes []Node) []Node {
 	return new
 }
 
+func substituteConcatForSpace(nodes []Node) []Node {
+	isPattern := func(node Node) bool {
+		if pattern, ok := node.(Pattern); ok && !pattern.Negated {
+			return true
+		}
+		return false
+	}
+	new := []Node{}
+	for _, node := range nodes {
+		switch v := node.(type) {
+		case Operator:
+			if v.Kind == Concat {
+				// merge consecutive patterns.
+				previous := v.Operands[0]
+				merged := Pattern{}
+				if p, ok := previous.(Pattern); ok {
+					merged = p
+				}
+				for _, node := range v.Operands[1:] {
+					if isPattern(node) && isPattern(previous) {
+						b := node.(Pattern)
+						// FIXME merge annotations.
+						if merged.Value != "" { // FIXME base case
+							merged = Pattern{Value: merged.Value + " " + b.Value}
+						} else {
+							merged = Pattern{Value: b.Value}
+						}
+						previous = node
+						continue
+					}
+					if merged.Value != "" {
+						new = append(new, merged)
+						merged = Pattern{}
+					}
+					new = append(new, substituteConcatForSpace([]Node{node})...)
+				}
+				if merged.Value != "" {
+					new = append(new, merged)
+					merged = Pattern{}
+				}
+			} else {
+				new = append(new, newOperator(substituteConcatForSpace(v.Operands), v.Kind)...)
+			}
+		case Parameter, Pattern:
+			new = append(new, node)
+		}
+	}
+	return new
+}
+
 // Map pipes query through one or more query transformer functions.
 func Map(query []Node, fns ...func([]Node) []Node) []Node {
 	for _, fn := range fns {
