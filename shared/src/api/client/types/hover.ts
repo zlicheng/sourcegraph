@@ -1,17 +1,19 @@
 import { MarkupKind } from '@sourcegraph/extension-api-classes'
 import { Hover as PlainHover, Range } from '@sourcegraph/extension-api-types'
-import { Badged, Hover, MarkupContent } from 'sourcegraph'
+import { Badged, Hover, MarkupContent, Tooltip } from 'sourcegraph'
 
 /** A hover that is merged from multiple Hover results and normalized. */
 export interface HoverMerged {
     contents: Badged<MarkupContent>[]
+    tooltips: Tooltip[]
 
     range?: Range
 }
 
 /** Create a merged hover from the given individual hovers. */
-export function fromHoverMerged(values: (Badged<Hover | PlainHover> | null | undefined)[]): HoverMerged | null {
+export function fromHoverMerged(values: (Badged<Hover | PlainHover> | null | undefined)[]): HoverMerged {
     const contents: HoverMerged['contents'] = []
+    const tooltips: HoverMerged['tooltips'] = []
     let range: Range | undefined
     for (const result of values) {
         if (result) {
@@ -22,13 +24,13 @@ export function fromHoverMerged(values: (Badged<Hover | PlainHover> | null | und
                     badge: result.badge,
                 })
             }
+            if (result.tooltips) {
+                tooltips.push(...result.tooltips)
+            }
             if (result.range && !range) {
                 range = result.range
             }
         }
     }
-    if (contents.length === 0) {
-        return null
-    }
-    return range ? { contents, range } : { contents }
+    return range ? { contents, tooltips, range } : { contents, tooltips }
 }

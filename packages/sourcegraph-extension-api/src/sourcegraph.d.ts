@@ -1215,6 +1215,22 @@ declare module 'sourcegraph' {
          * position or the current position itself.
          */
         range?: Range
+
+        /**
+         * The tooltips related to this hover.
+         */
+        tooltips?: Tooltip[]
+    }
+
+    export interface Tooltip {
+        summary: string
+        details: ?string
+        cta: ?Link
+    }
+
+    export interface Link {
+        text: string
+        url: string
     }
 
     export interface HoverProvider {

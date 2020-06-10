@@ -156,6 +156,7 @@ add('Common content', () => (
                 {...webHoverOverlayClassProps}
                 hoverOrError={{
                     contents: [FIXTURE_CONTENT],
+                    tooltips: []
                 }}
                 actionsOrError={FIXTURE_ACTIONS}
             />
@@ -172,6 +173,7 @@ add('Legacy badge', () => (
                 {...webHoverOverlayClassProps}
                 hoverOrError={{
                     contents: [{ ...FIXTURE_CONTENT, badge: LEGACY_FIXTURE_BADGE }],
+                    tooltips: []
                 }}
                 actionsOrError={FIXTURE_ACTIONS}
             />
@@ -202,6 +204,7 @@ add('Long code', () => (
                 {...webHoverOverlayClassProps}
                 hoverOrError={{
                     contents: [FIXTURE_CONTENT_LONG_CODE],
+                    tooltips: []
                 }}
                 actionsOrError={FIXTURE_ACTIONS}
             />
@@ -218,6 +221,7 @@ add('Long text only', () => (
                 {...webHoverOverlayClassProps}
                 hoverOrError={{
                     contents: [FIXTURE_CONTENT_LONG_TEXT_ONLY],
+                    tooltips: []
                 }}
                 actionsOrError={FIXTURE_ACTIONS}
             />
@@ -234,6 +238,7 @@ add('Multiple MarkupContents', () => (
                 {...webHoverOverlayClassProps}
                 hoverOrError={{
                     contents: [FIXTURE_CONTENT, FIXTURE_CONTENT, FIXTURE_CONTENT],
+                    tooltips: []
                 }}
                 actionsOrError={FIXTURE_ACTIONS}
             />
@@ -250,6 +255,7 @@ add('With alert', () => (
                 {...webHoverOverlayClassProps}
                 hoverOrError={{
                     contents: [FIXTURE_CONTENT],
+                    tooltips: [],
                     alerts: [
                         {
                             type: 'info',
@@ -282,6 +288,7 @@ add('Bitbucket styles', () => (
             {...bitbucketClassProps}
             hoverOrError={{
                 contents: [FIXTURE_CONTENT],
+                tooltips: []
             }}
             actionsOrError={FIXTURE_ACTIONS}
         />

@@ -6,24 +6,26 @@ const FIXTURE_RANGE: Range = { start: { line: 1, character: 2 }, end: { line: 3,
 
 describe('HoverMerged', () => {
     describe('from', () => {
-        test('0 hovers', () => expect(fromHoverMerged([])).toBeNull())
-        test('empty hovers', () => expect(fromHoverMerged([null, undefined])).toBeNull())
-        test('empty string hovers', () => expect(fromHoverMerged([{ contents: { value: '' } }])).toBeNull())
+        test('0 hovers', () => expect(fromHoverMerged([])).toEqual({contents: [], tooltips: []}))
+        test('empty hovers', () => expect(fromHoverMerged([null, undefined])).toEqual({contents: [], tooltips: []}))
+        test('empty string hovers', () => expect(fromHoverMerged([{ contents: { value: '' }, tooltips: [] }])).toEqual({contents: [], tooltips: []}))
         test('1 MarkupContent', () =>
-            expect(fromHoverMerged([{ contents: { kind: MarkupKind.Markdown, value: 'x' } }])).toEqual({
+            expect(fromHoverMerged([{ contents: { kind: MarkupKind.Markdown, value: 'x' }, tooltips: []  }])).toEqual({
                 contents: [{ kind: MarkupKind.Markdown, value: 'x' }],
+                tooltips: []
             }))
         test('2 MarkupContents', () =>
             expect(
                 fromHoverMerged([
-                    { contents: { kind: MarkupKind.Markdown, value: 'x' }, range: FIXTURE_RANGE },
-                    { contents: { kind: MarkupKind.Markdown, value: 'y' } },
+                    { contents: { kind: MarkupKind.Markdown, value: 'x' }, tooltips: [], range: FIXTURE_RANGE },
+                    { contents: { kind: MarkupKind.Markdown, value: 'y' }, tooltips: [] },
                 ])
             ).toEqual({
                 contents: [
                     { kind: MarkupKind.Markdown, value: 'x' },
                     { kind: MarkupKind.Markdown, value: 'y' },
                 ],
+                tooltips: [],
                 range: FIXTURE_RANGE,
             }))
     })

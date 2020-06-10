@@ -79,7 +79,8 @@ describe('HoverOverlay', () => {
                 .create(
                     <HoverOverlay
                         {...commonProps}
-                        hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }] }}
+                        hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }],
+                                        tooltips: [] }}
                     />
                 )
                 .toJSON()
@@ -97,6 +98,7 @@ describe('HoverOverlay', () => {
                                 { kind: MarkupKind.Markdown, value: 'v' },
                                 { kind: MarkupKind.Markdown, value: 'v2' },
                             ],
+                            tooltips: []
                         }}
                     />
                 )
@@ -104,13 +106,27 @@ describe('HoverOverlay', () => {
         ).toMatchSnapshot()
     })
 
+    test('hover present, tooltips present', () => {
+        expect(
+            renderShallow(
+                <HoverOverlay
+                    {...commonProps}
+                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }],
+                                    tooltips: [{summary: 'Summary Text', details: null, cta: null}] }}
+                />
+            )
+        ).toMatchSnapshot()
+    })
+
+
     test('actions and hover present', () => {
         expect(
             renderShallow(
                 <HoverOverlay
                     {...commonProps}
                     actionsOrError={[{ action: { id: 'a', command: 'c' } }]}
-                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }] }}
+                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }],
+                                    tooltips: [] }}
                 />
             )
         ).toMatchSnapshot()
@@ -134,6 +150,7 @@ describe('HoverOverlay', () => {
                                 ),
                             },
                         ],
+                        tooltips: []
                     }}
                 />
             )
@@ -158,7 +175,8 @@ describe('HoverOverlay', () => {
                 <HoverOverlay
                     {...commonProps}
                     actionsOrError="loading"
-                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }] }}
+                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }],
+                                    tooltips: [] }}
                 />
             )
         ).toMatchSnapshot()
@@ -194,7 +212,7 @@ describe('HoverOverlay', () => {
                 <HoverOverlay
                     {...commonProps}
                     actionsOrError={{ message: 'm', name: 'c' }}
-                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }] }}
+                    hoverOrError={{ contents: [{ kind: MarkupKind.Markdown, value: 'v' }], tooltips: [] }}
                 />
             )
         ).toMatchSnapshot()

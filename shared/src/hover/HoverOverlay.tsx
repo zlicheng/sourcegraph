@@ -1,5 +1,6 @@
 import { HoverOverlayProps as GenericHoverOverlayProps } from '@sourcegraph/codeintellify'
 import { LoadingSpinner } from '@sourcegraph/react-loading-spinner'
+import { Tooltip } from 'sourcegraph'
 import classNames from 'classnames'
 import { isEqual, upperFirst } from 'lodash'
 import CloseIcon from 'mdi-react/CloseIcon'
@@ -148,6 +149,8 @@ export class HoverOverlay<A extends string> extends React.PureComponent<HoverOve
             actionItemPressedClassName,
         } = this.props
 
+        console.log('rendering', hoverOrError);
+
         if (!hoverOrError && (!actionsOrError || isErrorLike(actionsOrError))) {
             return null
         }
@@ -171,6 +174,10 @@ export class HoverOverlay<A extends string> extends React.PureComponent<HoverOve
                 className={classNames('hover-overlay', className)}
                 ref={hoverRef}
             >
+                {hoverOrError !== LOADING &&
+                 !isErrorLike(hoverOrError) &&
+                 hoverOrError?.tooltips.map(
+                     (tooltip, index) => <TooltipElem tooltip={tooltip} key={index} />)}
                 <div className={classNames('hover-overlay__contents')}>
                     {showCloseButton && (
                         <button
@@ -305,4 +312,11 @@ export class HoverOverlay<A extends string> extends React.PureComponent<HoverOve
     private logTelemetryEvent(): void {
         this.props.telemetryService.log('hover')
     }
+}
+
+function TooltipElem({tooltip}: {tooltip: Tooltip}) {
+    return <div>
+             <span>{tooltip.details}</span>
+             {tooltip.cta && <a href={tooltip.cta.url}>{tooltip.cta.text}</a>}
+           </div>
 }

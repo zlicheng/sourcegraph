@@ -637,6 +637,45 @@ exports[`HoverOverlay hover present, actions loading 1`] = `
 </div>
 `;
 
+exports[`HoverOverlay hover present, tooltips present 1`] = `
+<div
+  className="hover-overlay"
+  style={
+    Object {
+      "left": "0px",
+      "opacity": 1,
+      "top": "0px",
+      "visibility": "visible",
+    }
+  }
+>
+  <TooltipElem
+    tooltip={
+      Object {
+        "cta": null,
+        "details": null,
+        "summary": "Summary Text",
+      }
+    }
+  />
+  <div
+    className="hover-overlay__contents"
+  >
+    <React.Fragment>
+      <span
+        className="hover-overlay__content e2e-tooltip-content"
+        dangerouslySetInnerHTML={
+          Object {
+            "__html": "<p>v</p>
+",
+          }
+        }
+      />
+    </React.Fragment>
+  </div>
+</div>
+`;
+
 exports[`HoverOverlay multiple hovers present 1`] = `
 <div
   className="hover-overlay"

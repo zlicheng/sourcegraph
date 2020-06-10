@@ -7,12 +7,12 @@ import { FIXTURE } from './registry.test'
 
 const scheduler = (): TestScheduler => new TestScheduler((a, b) => expect(a).toEqual(b))
 
-const FIXTURE_RESULT: Hover | null = { contents: { value: 'c', kind: MarkupKind.PlainText } }
-const FIXTURE_RESULT_MERGED: HoverMerged | null = { contents: [{ value: 'c', kind: MarkupKind.PlainText }] }
+const FIXTURE_RESULT: Hover | null = { contents: { value: 'c', kind: MarkupKind.PlainText }, tooltips: [] }
+const FIXTURE_RESULT_MERGED: HoverMerged | null = { contents: [{ value: 'c', kind: MarkupKind.PlainText }], tooltips: [] }
 
 describe('getHover', () => {
     describe('0 providers', () => {
-        test('returns null', () => {
+        test('returns empty', () => {
             scheduler().run(({ cold, expectObservable }) =>
                 expectObservable(
                     getHover(
@@ -20,14 +20,14 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-a', {
-                    a: { isLoading: false, result: null },
+                    a: { isLoading: false, result: {contents: [], tooltips: []} },
                 })
             )
         })
     })
 
     describe('1 provider', () => {
-        it('returns null result from provider', () => {
+        it('returns empty result from provider', () => {
             scheduler().run(({ cold, expectObservable }) =>
                 expectObservable(
                     getHover(
@@ -35,8 +35,8 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-l-r', {
-                    l: { isLoading: true, result: null },
-                    r: { isLoading: false, result: null },
+                    l: { isLoading: true, result: {contents: [], tooltips: []} },
+                    r: { isLoading: false, result: {contents: [], tooltips: []} },
                 })
             )
         })
@@ -51,7 +51,7 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-lr', {
-                    l: { isLoading: true, result: null },
+                    l: { isLoading: true, result: {contents: [], tooltips: []} },
                     r: { isLoading: false, result: FIXTURE_RESULT_MERGED },
                 })
             )
@@ -59,7 +59,7 @@ describe('getHover', () => {
     })
 
     describe('2 providers', () => {
-        it('returns null result if both providers return null', () => {
+        it('returns empty result if both providers return null', () => {
             scheduler().run(({ cold, expectObservable }) =>
                 expectObservable(
                     getHover(
@@ -69,13 +69,13 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-lr', {
-                    l: { isLoading: true, result: null },
-                    r: { isLoading: false, result: null },
+                    l: { isLoading: true, result: {contents: [], tooltips: []} },
+                    r: { isLoading: false, result: {contents: [], tooltips: []} },
                 })
             )
         })
 
-        it('omits null result from 1 provider', () => {
+        it('omits empty result from 1 provider', () => {
             scheduler().run(({ cold, expectObservable }) =>
                 expectObservable(
                     getHover(
@@ -85,7 +85,7 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-lr', {
-                    l: { isLoading: true, result: null },
+                    l: { isLoading: true, result: {contents: [], tooltips: []} },
                     r: { isLoading: false, result: FIXTURE_RESULT_MERGED },
                 })
             )
@@ -102,7 +102,7 @@ describe('getHover', () => {
                         false
                     )
                 ).toBe('-lr', {
-                    l: { isLoading: true, result: null },
+                    l: { isLoading: true, result: {contents: [], tooltips: []} },
                     r: { isLoading: false, result: FIXTURE_RESULT_MERGED },
                 })
             )
@@ -118,6 +118,7 @@ describe('getHover', () => {
                                     cold('-a', {
                                         a: {
                                             contents: { value: 'c1' },
+                                            tooltips: [],
                                             range: { start: { line: 1, character: 2 }, end: { line: 3, character: 4 } },
                                         },
                                     }),
@@ -125,6 +126,7 @@ describe('getHover', () => {
                                     cold('-a', {
                                         a: {
                                             contents: { value: 'c2' },
+                                            tooltips: [],
                                             range: { start: { line: 1, character: 2 }, end: { line: 3, character: 4 } },
                                         },
                                     }),
@@ -133,7 +135,7 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-lr', {
-                    l: { isLoading: true, result: null },
+                    l: { isLoading: true, result: {contents: [], tooltips: []} },
                     r: {
                         isLoading: false,
                         result: {
@@ -141,6 +143,7 @@ describe('getHover', () => {
                                 { value: 'c1', kind: MarkupKind.PlainText },
                                 { value: 'c2', kind: MarkupKind.PlainText },
                             ],
+                            tooltips: [],
                             range: { start: { line: 1, character: 2 }, end: { line: 3, character: 4 } },
                         },
                     },
@@ -161,10 +164,10 @@ describe('getHover', () => {
                         FIXTURE.TextDocumentPositionParams
                     )
                 ).toBe('-abcd', {
-                    a: { isLoading: true, result: null },
+                    a: { isLoading: true, result: {contents: [], tooltips: []} },
                     b: { isLoading: false, result: FIXTURE_RESULT_MERGED },
-                    c: { isLoading: true, result: null },
-                    d: { isLoading: false, result: null },
+                    c: { isLoading: true, result: {contents: [], tooltips: []} },
+                    d: { isLoading: false, result: {contents: [], tooltips: []} },
                 })
             })
         })
