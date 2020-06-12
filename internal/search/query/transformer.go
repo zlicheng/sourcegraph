@@ -85,6 +85,7 @@ func Hoist(nodes []Node) ([]Node, error) {
 		}
 		pattern = append(pattern, node)
 	}
+	expression.Annotation.Labels = HeuristicHoisted
 	return append(scopeParameters, newOperator(pattern, expression.Kind)...), nil
 }
 

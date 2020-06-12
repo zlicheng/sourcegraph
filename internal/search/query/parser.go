@@ -29,17 +29,6 @@ func (Pattern) node()   {}
 func (Parameter) node() {}
 func (Operator) node()  {}
 
-// Labels are general-purpose annotations that store information about a node.
-type labels uint8
-
-const (
-	None    labels = 0
-	Literal        = 1 << iota
-	Quoted
-	HeuristicParensAsPatterns
-	HeuristicDanglingParens
-)
-
 // An annotation stores information associated with a node.
 type Annotation struct {
 	Labels labels
@@ -69,8 +58,9 @@ const (
 
 // Operator is a nonterminal node of kind Kind with child nodes Operands.
 type Operator struct {
-	Kind     operatorKind
-	Operands []Node
+	Kind       operatorKind
+	Operands   []Node
+	Annotation Annotation `json:"-"` // An annotation attached to this operator.
 }
 
 func (node Pattern) String() string {

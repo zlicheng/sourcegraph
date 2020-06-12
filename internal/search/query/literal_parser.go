@@ -71,7 +71,7 @@ loop:
 				// we stop treating it as a potential pattern
 				// here--it might be closing a group.
 				count = start // Backtrack.
-				balanced = 0
+				balanced = 0  // Pattern is balanced up to this point.
 				break loop
 			}
 			result = append(result, r)
@@ -85,9 +85,8 @@ loop:
 	}
 	scanned = string(result)
 	if ContainsAndOrKeyword(scanned) {
-		// Reject the whole thing if we scanned 'and' or 'or'. Preceding
-		// parentheses likely refer to a group, not a pattern.
-		log15.Info("rejected", "", "")
+		// Reject if we scanned 'and' or 'or'. Preceding parentheses
+		// likely refer to a group, not a pattern.
 		return "", 0, false
 	}
 	return scanned, count, balanced == 0

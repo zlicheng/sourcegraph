@@ -854,6 +854,7 @@ func TestParseLiteralSearch(t *testing.T) {
 			Input: "repo:foo (lisp or lisp())",
 			Want:  `(and "repo:foo" (or "lisp" "lisp()"))`,
 		},
+		// FIXME malformed, I want to see it.
 		{
 			Input: "repo:foo (lisp or lisp()",
 			Want:  `(and "repo:foo" (or "(lisp" "lisp()"))`,
