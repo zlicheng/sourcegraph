@@ -94,11 +94,14 @@ loop:
 			if ok {
 				nodes = append(nodes, parameter)
 			} else {
+				log15.Info("ParsePatternLiteral", "", "")
 				pattern := p.ParsePatternLiteral()
+				log15.Info("pattern", "", prettyPrint([]Node{pattern}))
 				nodes = append(nodes, pattern)
 			}
 		}
 	}
+	log15.Info("result", "", prettyPrint(nodes))
 	return partitionParameters(nodes), nil
 }
 
@@ -184,7 +187,7 @@ func ParseAndOrLiteral(in string) ([]Node, error) {
 		return nil, err
 	}
 	if parser.balanced != 0 {
-		// The query is unbalanced and we need to try something more
+		// The query is (still) unbalanced and we need to try something more
 		//  aggressive. For example, the query might be something like
 		//  "(x" or "x or (x" which start with a leading open
 		//  parenthesis.
@@ -192,6 +195,7 @@ func ParseAndOrLiteral(in string) ([]Node, error) {
 		if nodes, err := literalFallbackParser(in); err == nil {
 			return nodes, nil
 		}
+		panic("fail") // Unsupported?
 	}
 	if !isSet(parser.heuristics, disambiguated) {
 		// Hoist or expressions if this query is potential ambiguous.
