@@ -1,6 +1,7 @@
 package query
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"unicode"
@@ -261,8 +262,8 @@ func ParseAndOrLiteral(in string) ([]Node, error) {
 	if err != nil {
 		switch err.(type) {
 		case *ExpectedOperand:
-			// The query is something like "(" or "x or" and expects
-			// an operand. Try parse something like this.
+			// The query may be unbalanced or malformed as in "(" or
+			// "x or" and expects an operand. Try harder to parse it.
 			if nodes, err := literalFallbackParser(in); err == nil {
 				return nodes, nil
 			}
@@ -271,15 +272,13 @@ func ParseAndOrLiteral(in string) ([]Node, error) {
 		return nil, err
 	}
 	if parser.balanced != 0 {
-		// The query is (still) unbalanced and we need to try something more
-		//  aggressive. For example, the query might be something like
-		//  "(x" or "x or (x" which start with a leading open
-		//  parenthesis.
-		log15.Info("Unbalanced for " + prettyPrint(nodes))
+		// The query is unbalanced and might be something like "(x" or
+		// "x or (x" where patterns start with a leading open
+		// parenthesis. Try harder to parse it.
 		if nodes, err := literalFallbackParser(in); err == nil {
 			return nodes, nil
 		}
-		panic("fail") // Unsupported?
+		return nil, errors.New("unbalanced expression")
 	}
 	if !isSet(parser.heuristics, disambiguated) {
 		// Hoist or expressions if this query is potential ambiguous.
