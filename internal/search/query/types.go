@@ -16,6 +16,22 @@ const (
 	SearchTypeStructural
 )
 
+type UnsupportedError struct {
+	Msg string
+}
+
+func (e *UnsupportedError) Error() string {
+	return e.Msg
+}
+
+type ExpectedOperand struct {
+	Msg string
+}
+
+func (e *ExpectedOperand) Error() string {
+	return e.Msg
+}
+
 // QueryInfo is an intermediate type for an interface of both ordinary queries
 // and and/or query processing. The and/or query processing will become the
 // canonical query form and the QueryInfo type will be removed.
