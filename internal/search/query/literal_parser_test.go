@@ -268,13 +268,13 @@ func TestParseAndOrLiteral(t *testing.T) {
 		},
 		{
 			Input:      "repo:foo )main( or (lisp    lisp)",
-			Want:       `(and "repo:foo" (or "main(" "(lisp    lisp)"))`,
-			WantLabels: "HeuristicHoisted,HeuristicParensAsPatterns",
+			Want:       ``,
+			WantLabels: "",
 		},
 		{
 			Input:      "repo:foo ) main( or (lisp    lisp)",
-			Want:       `(and "repo:foo" (or "main(" "(lisp    lisp)"))`,
-			WantLabels: "HeuristicHoisted,HeuristicParensAsPatterns",
+			Want:       ``,
+			WantLabels: "",
 		},
 		// This test input should error because the single quote in 'after' is unclosed.
 		/*

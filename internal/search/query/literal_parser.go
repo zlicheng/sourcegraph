@@ -142,14 +142,25 @@ loop:
 			}
 			nodes = append(nodes, result...)
 		case p.match(RPAREN):
-			if isSet(p.heuristics, allowDanglingParens) {
-				// Consume strings containing unbalanced
-				// parentheses up to whitespace.
-				pattern := p.ParsePatternLiteral()
-				pattern.Annotation.Labels |= HeuristicDanglingParens
-				nodes = append(nodes, pattern)
-				continue
-			}
+			/*
+				if p.balanced <= 0 {
+					// This is a dangling right paren. It can't
+					// possibly help us parse a well-formed query,
+					// so try treat it as a pattern.
+					pattern := p.ParsePatternLiteral()
+					pattern.Annotation.Labels |= HeuristicDanglingParens
+					nodes = append(nodes, pattern)
+					continue
+				}
+					if isSet(p.heuristics, allowDanglingParens) {
+						// Consume strings containing unbalanced
+						// parentheses up to whitespace.
+						pattern := p.ParsePatternLiteral()
+						pattern.Annotation.Labels |= HeuristicDanglingParens
+						nodes = append(nodes, pattern)
+						continue
+					}
+			*/
 			_ = p.expect(RPAREN) // Guaranteed to succeed.
 			p.balanced--
 			p.heuristics |= disambiguated
