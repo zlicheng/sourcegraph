@@ -38,6 +38,7 @@ func TestParseAndOrLiteral(t *testing.T) {
 		Input      string
 		Want       string
 		WantLabels string
+		WantError  string
 	}{
 		{
 			Input:      "()",
@@ -268,31 +269,37 @@ func TestParseAndOrLiteral(t *testing.T) {
 		},
 		{
 			Input:      "repo:foo )main( or (lisp    lisp)",
-			Want:       ``,
-			WantLabels: "",
+			Want:       `(and "repo:foo" (or ")main(" "(lisp    lisp)"))`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns",
 		},
 		{
 			Input:      "repo:foo ) main( or (lisp    lisp)",
-			Want:       ``,
-			WantLabels: "",
+			Want:       `(and "repo:foo" (or (concat ")" "main(") "(lisp    lisp)"))`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns",
 		},
-		// This test input should error because the single quote in 'after' is unclosed.
-		/*
-			{
-				Input: `type:commit message:'a commit message' after:'10 days ago" test test2`,
-				Want:  "",
-			},
-		*/
+		{
+			Input:      "repo:foo )))) main( or (lisp    lisp) and )))",
+			Want:       `(and "repo:foo" (or (concat "))))" "main(") (and "(lisp    lisp)" ")))")))`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted,HeuristicParensAsPatterns",
+		},
+
 		{
 			Input: `"quoted"`,
 			Want:  `"\"quoted\""`,
+		},
+		// This test input should error because the single quote in 'after' is unclosed.
+		{
+			Input:     `type:commit message:'a commit message' after:'10 days ago" test test2`,
+			WantError: "unterminated literal: expected '",
 		},
 	}
 	for _, tt := range cases {
 		t.Run("literal search parse", func(t *testing.T) {
 			result, err := ParseAndOrLiteral(tt.Input)
 			if err != nil {
-				t.Fatal("Did not expect error " + err.Error())
+				if diff := cmp.Diff(tt.WantError, err.Error()); diff != "" {
+					t.Error(diff)
+				}
 			}
 			var resultStr []string
 			for _, node := range result {
