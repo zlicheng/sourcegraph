@@ -968,16 +968,26 @@ func ParseLiteralSearch(in string) ([]Node, error) {
 }
 
 // ProcessAndOr query parses and validates an and/or query for a given search type.
-func ProcessAndOr(in string) (QueryInfo, error) {
-	query, err := ParseAndOr(in)
-	if err != nil {
-		return nil, err
-	}
-	query = Map(query, LowercaseFieldNames, SubstituteAliases)
-	err = validate(query)
-	if err != nil {
-		return nil, err
-	}
+func ProcessAndOr(in string, searchType SearchType) (QueryInfo, error) {
+	var query []Node
+	var err error
 
+	switch searchType {
+	case SearchTypeLiteral, SearchTypeStructural:
+		query, err = ParseLiteralSearch(in)
+		if err != nil {
+			return nil, err
+		}
+	case SearchTypeRegex:
+		query, err = ParseAndOr(in)
+		if err != nil {
+			return nil, err
+		}
+		query = Map(query, LowercaseFieldNames, SubstituteAliases)
+		err = validate(query)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &AndOrQuery{Query: query}, nil
 }
