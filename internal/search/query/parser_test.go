@@ -836,9 +836,35 @@ func TestParseLiteralSearch(t *testing.T) {
 				Want:  `(or "(y" "(z")`,
 			},
 		*/
+		/*
+			{
+				Input: "repo:foo (lisp)",
+				Want:  `(and "repo:foo" "(lisp)")`,
+			},
+			{
+				Input: "repo:foo (lisp lisp)",
+				Want:  `(and "repo:foo" "(lisp lisp)")`,
+			},
+			{
+				Input: "repo:foo (lisp lisp())",
+				Want:  `(and "repo:foo" "(lisp lisp())")`,
+			},
+		*/
 		{
-			Input: "repo:foo (lisp)",
-			Want:  "", // FIXME
+			Input: "repo:foo (lisp or lisp)",
+			Want:  `(and "repo:foo" (or "lisp" "lisp"))`,
+		},
+		{
+			Input: "repo:foo (lisp or lisp())",
+			Want:  `(and "repo:foo" (or "lisp" "lisp()"))`,
+		},
+		{
+			Input: "repo:foo (lisp or lisp())",
+			Want:  `(and "repo:foo" (or "lisp" "lisp()"))`,
+		},
+		{
+			Input: "repo:foo (lisp or lisp()",
+			Want:  `(and "repo:foo" (or "(lisp" "lisp()"))`,
 		},
 		/*
 			{

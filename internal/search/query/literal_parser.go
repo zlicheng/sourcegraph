@@ -37,6 +37,7 @@ func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
 }
 
 // Do I scan up to whitespace, or whitespace and balanced? I think whitespace and balanced.
+// Yeah, because if you have (lisp lisp) we want the parens to be literal.
 
 // ScanBalancedPatternLiteral is like ScanAnyPatternLiteral, except that it is
 // more strict about scanning on two points. It will:
@@ -47,10 +48,13 @@ func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
 
 // consumes all characters up to a whitespace character and returns
 // the string and how much it consumed.
-func ScanBalancedPatternLiteral(buf []byte) (scanned string, count int) {
-	var advance int
+
+// maybe only do this if we detect a paren in a string...
+func ScanBalancedPatternLiteral(buf []byte) (scanned string, count int, ok bool) {
+	var advance, balanced int
 	var r rune
-	var result []rune
+	var piece []rune
+	var pieces []string
 
 	next := func() rune {
 		r, advance = utf8.DecodeRune(buf)
@@ -58,24 +62,60 @@ func ScanBalancedPatternLiteral(buf []byte) (scanned string, count int) {
 		buf = buf[advance:]
 		return r
 	}
+
+loop:
 	for len(buf) > 0 {
 		start := count
 		r = next()
-		if unicode.IsSpace(r) {
-			count = start // Backtrack.
-			break
+		switch {
+		case unicode.IsSpace(r) && balanced == 0:
+			// Stop scanning a potential pattern when we see
+			// whitespace in a balanced state.
+			break loop
+		case r == '(':
+			balanced++
+			piece = append(piece, r)
+		case r == ')':
+			balanced--
+			if balanced < 0 {
+				// This paren is an unmatched closing paren, so
+				// we stop treating it as a potential pattern
+				// here--it might be closing a group.
+				count = start // Backtrack.
+				balanced = 0
+				break loop
+			}
+			piece = append(piece, r)
+		case unicode.IsSpace(r):
+			// We see a space and the pattern is unbalanced, so assume this
+			// terminates a piece of an incomplete search pattern.
+			if len(piece) > 0 {
+				pieces = append(pieces, string(piece))
+			}
+			piece = piece[:0]
+		default:
+			piece = append(piece, r)
 		}
-		result = append(result, r)
 	}
-	scanned = string(result)
-	log15.Info("scanned", "v", scanned)
-	return scanned, count
+	if len(piece) > 0 {
+		pieces = append(pieces, string(piece))
+	}
+	scanned = strings.Join(pieces, " ") // Shortcut.
+	log15.Info("scanned balanced", "v", scanned)
+	if ContainsAndOrKeyword(scanned) {
+		// Reject the whole thing if we scanned 'and' or 'or'. Preceding
+		// parentheses likely refer to a group, not a pattern.
+		log15.Info("rejected", "", "")
+		return "", 0, false
+	}
+	return scanned, count, balanced == 0
 }
 
 func (p *parser) ParsePatternLiteral() Pattern {
-	// Accept unconditionally as pattern, even if the pattern
-	// contains dangling quotes like " or ', and do not interpret
-	// quoted strings as quoted, but interpret them literally.
+	if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
+		p.pos += advance
+		return Pattern{Value: value, Negated: false, Annotation: Annotation{Labels: Literal}}
+	}
 	value, advance := ScanAnyPatternLiteral(p.buf[p.pos:])
 	p.pos += advance
 	return Pattern{Value: value, Negated: false, Annotation: Annotation{Labels: Literal}}
@@ -94,6 +134,12 @@ loop:
 		}
 		switch {
 		case p.match(LPAREN):
+			if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
+				p.pos += advance
+				pattern := Pattern{Value: value, Negated: false, Annotation: Annotation{Labels: Literal}}
+				nodes = append(nodes, pattern)
+				continue
+			}
 			if isSet(p.heuristics, allowDanglingParens) {
 				// Consume strings containing unbalanced
 				// parentheses up to whitespace.
