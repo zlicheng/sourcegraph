@@ -63,8 +63,9 @@ loop:
 				// parentheses up to whitespace.
 				pattern := p.ParsePatternLiteral()
 				nodes = append(nodes, pattern)
-				break loop
+				continue
 			}
+			log15.Info("2.")
 			_ = p.expect(LPAREN) // Guaranteed to succeed.
 			p.balanced++
 			log15.Info("scanned", "v", "(")
@@ -87,6 +88,7 @@ loop:
 			// Caller advances.
 			break loop
 		default:
+			log15.Info("3.")
 			parameter, ok, err := p.ParseParameter()
 			if err != nil {
 				return nil, err

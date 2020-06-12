@@ -803,8 +803,6 @@ func TestParseLiteralSearch(t *testing.T) {
 				Input: `""`,
 				Want:  `"\"\""`,
 			},
-		*/
-		/*
 			{
 				Input: "(",
 				Want:  `"("`,
@@ -817,26 +815,14 @@ func TestParseLiteralSearch(t *testing.T) {
 				Input: "x or",
 				Want:  `(concat "x" "or")`,
 			},
-		*/
-		/*
-			{
-				Input: "repo:foo (lisp)",
-				Want:  "", // FIXME
-			},
-		*/
-		/*
 			{
 				Input: "repo:foo (x",
 				Want:  `(and "repo:foo" "(x")`,
 			},
-		*/
-		/*
 			{
 				Input: "(x or bar() )",
 				Want:  `(or "x" "bar()")`,
 			},
-		*/
-		/*
 			{
 				Input: "(x",
 				Want:  `"(x"`,
@@ -845,13 +831,21 @@ func TestParseLiteralSearch(t *testing.T) {
 				Input: "x or (x",
 				Want:  `(or "x" "(x")`,
 			},
+			{
+				Input: "(y or (z",
+				Want:  `(or "(y" "(z")`,
+			},
 		*/
 		{
-			// Scanned as (or "x" "bar())"), and unbalanced, so then, the fallback
-			// parser will kick in, scan (x, but then..???
-			Input: "(y or bar())",
-			Want:  `"(y"`, // FIXME
+			Input: "repo:foo (lisp)",
+			Want:  "", // FIXME
 		},
+		/*
+			{
+				Input: "(y or bar())",
+				Want:  `"(y or (z"`, // FIXME
+			},
+		*/
 		/*
 			{
 				Input: "((x or bar(",
