@@ -10,8 +10,8 @@ import (
 	"github.com/inconshreveable/log15"
 )
 
-// ScanAnyPatternLiteral consumes all characters up to a whitespace character and returns
-// the string and how much it consumed.
+// ScanAnyPatternLiteral consumes all characters up to a whitespace character
+// and returns the string and how much it consumed.
 func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
 	var advance int
 	var r rune
@@ -33,29 +33,17 @@ func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
 		result = append(result, r)
 	}
 	scanned = string(result)
-	log15.Info("scanned", "v", scanned)
 	return scanned, count
 }
 
-// Do I scan up to whitespace, or whitespace and balanced? I think whitespace and balanced.
-// Yeah, because if you have (lisp lisp) we want the parens to be literal.
-
-// ScanBalancedPatternLiteral is like ScanAnyPatternLiteral, except that it is
-// more strict about scanning on two points. It will:
-// (1) it will stop scanning the moment it detects an unbalanced parenthesis.
-// (2) reject strings that contain potential 'and' or 'or' keywords, and
-//
-// I.e., not (<contains keyword> and <is balanced>) holds.
-
-// consumes all characters up to a whitespace character and returns
-// the string and how much it consumed.
-
-// maybe only do this if we detect a paren in a string...
+// ScanBalancedPatternLiteral attempts to scan parentheses as literal patterns.
+// It returns the scanned string, how much to advance, and whether it succeeded.
+// Basically it scans any literal string, including whitespace, but ensures that
+// a resulting string does not contain 'and' or 'or keywords, and is balanced.
 func ScanBalancedPatternLiteral(buf []byte) (scanned string, count int, ok bool) {
 	var advance, balanced int
 	var r rune
-	var piece []rune
-	var pieces []string
+	var result []rune
 
 	next := func() rune {
 		r, advance = utf8.DecodeRune(buf)
@@ -75,7 +63,7 @@ loop:
 			break loop
 		case r == '(':
 			balanced++
-			piece = append(piece, r)
+			result = append(result, r)
 		case r == ')':
 			balanced--
 			if balanced < 0 {
@@ -86,23 +74,16 @@ loop:
 				balanced = 0
 				break loop
 			}
-			piece = append(piece, r)
+			result = append(result, r)
 		case unicode.IsSpace(r):
 			// We see a space and the pattern is unbalanced, so assume this
-			// terminates a piece of an incomplete search pattern.
-			if len(piece) > 0 {
-				pieces = append(pieces, string(piece))
-			}
-			piece = piece[:0]
+			// this space is still part of the pattern.
+			result = append(result, r)
 		default:
-			piece = append(piece, r)
+			result = append(result, r)
 		}
 	}
-	if len(piece) > 0 {
-		pieces = append(pieces, string(piece))
-	}
-	scanned = strings.Join(pieces, " ") // Shortcut.
-	log15.Info("scanned balanced", "v", scanned)
+	scanned = string(result)
 	if ContainsAndOrKeyword(scanned) {
 		// Reject the whole thing if we scanned 'and' or 'or'. Preceding
 		// parentheses likely refer to a group, not a pattern.
@@ -162,8 +143,7 @@ loop:
 			p.balanced--
 			p.heuristics |= disambiguated
 			if len(nodes) == 0 {
-				// We parsed "()".
-				// Interpret literally.
+				// We parsed "()", interpret it literally.
 				nodes = []Node{Pattern{Value: "()", Annotation: Annotation{Labels: Literal | HeuristicParensAsPatterns}}}
 			}
 			break loop

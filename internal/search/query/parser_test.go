@@ -839,10 +839,6 @@ func TestParseLiteralSearch(t *testing.T) {
 			Want:  `(and "repo:foo" "(lisp)")`,
 		},
 		{
-			Input: "repo:foo (lisp lisp)",
-			Want:  `(and "repo:foo" "(lisp lisp)")`,
-		},
-		{
 			Input: "repo:foo (lisp lisp())",
 			Want:  `(and "repo:foo" "(lisp lisp())")`,
 		},
@@ -1007,6 +1003,12 @@ func TestParseLiteralSearch(t *testing.T) {
 		{
 			Input: `"quoted"`,
 			Want:  `"\"quoted\""`,
+		},
+		// For implementation simplicity, behavior preserves whitespace
+		// inside parentheses.
+		{
+			Input: "repo:foo (lisp    lisp)",
+			Want:  `(and "repo:foo" "(lisp    lisp)")`,
 		},
 	}
 	for _, tt := range cases {
