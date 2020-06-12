@@ -1,11 +1,37 @@
 package query
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
+
+func collectLabels(nodes []Node) (result labels) {
+	for _, node := range nodes {
+		switch v := node.(type) {
+		case Operator:
+			result |= v.Annotation.Labels
+			result |= collectLabels(v.Operands)
+		case Pattern:
+			result |= v.Annotation.Labels
+		}
+	}
+	return result
+}
+
+func heuristicLabels(nodes []Node) string {
+	labels := Strings(collectLabels(nodes))
+	var keep []string
+	for _, s := range labels {
+		if strings.HasPrefix(s, "Heuristic") {
+			keep = append(keep, s)
+		}
+	}
+	sort.Strings(keep)
+	return strings.Join(keep, ",")
+}
 
 func TestParseAndOrLiteral(t *testing.T) {
 	cases := []struct {
@@ -14,8 +40,9 @@ func TestParseAndOrLiteral(t *testing.T) {
 		WantLabels string
 	}{
 		{
-			Input: "()",
-			Want:  `"()"`,
+			Input:      "()",
+			Want:       `"()"`,
+			WantLabels: "HeuristicParensAsPatterns",
 		},
 		{
 			Input: `"`,
@@ -26,44 +53,52 @@ func TestParseAndOrLiteral(t *testing.T) {
 			Want:  `"\"\""`,
 		},
 		{
-			Input: "(",
-			Want:  `"("`,
+			Input:      "(",
+			Want:       `"("`,
+			WantLabels: "HeuristicDanglingParens",
 		},
 		{
-			Input: "repo:foo foo( or bar(",
-			Want:  `(and "repo:foo" (or "foo(" "bar("))`,
+			Input:      "repo:foo foo( or bar(",
+			Want:       `(and "repo:foo" (or "foo(" "bar("))`,
+			WantLabels: "HeuristicHoisted",
 		},
 		{
 			Input: "x or",
 			Want:  `(concat "x" "or")`,
 		},
 		{
-			Input: "repo:foo (x",
-			Want:  `(and "repo:foo" "(x")`,
+			Input:      "repo:foo (x",
+			Want:       `(and "repo:foo" "(x")`,
+			WantLabels: "HeuristicDanglingParens",
 		},
 		{
 			Input: "(x or bar() )",
 			Want:  `(or "x" "bar()")`,
 		},
 		{
-			Input: "(x",
-			Want:  `"(x"`,
+			Input:      "(x",
+			Want:       `"(x"`,
+			WantLabels: "HeuristicDanglingParens",
 		},
 		{
-			Input: "x or (x",
-			Want:  `(or "x" "(x")`,
+			Input:      "x or (x",
+			Want:       `(or "x" "(x")`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted",
 		},
 		{
-			Input: "(y or (z",
-			Want:  `(or "(y" "(z")`,
+			Input:      "(y or (z",
+			Want:       `(or "(y" "(z")`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted",
 		},
 		{
-			Input: "repo:foo (lisp)",
-			Want:  `(and "repo:foo" "(lisp)")`,
+			Input:      "repo:foo (lisp)",
+			Want:       `(and "repo:foo" "(lisp)")`,
+			WantLabels: "HeuristicParensAsPatterns",
 		},
 		{
-			Input: "repo:foo (lisp lisp())",
-			Want:  `(and "repo:foo" "(lisp lisp())")`,
+			Input:      "repo:foo (lisp lisp())",
+			Want:       `(and "repo:foo" "(lisp lisp())")`,
+			WantLabels: "HeuristicParensAsPatterns",
 		},
 		{
 			Input: "repo:foo (lisp or lisp)",
@@ -77,18 +112,19 @@ func TestParseAndOrLiteral(t *testing.T) {
 			Input: "repo:foo (lisp or lisp())",
 			Want:  `(and "repo:foo" (or "lisp" "lisp()"))`,
 		},
-		// FIXME malformed, I want to see it.
 		{
-			Input: "repo:foo (lisp or lisp()",
-			Want:  `(and "repo:foo" (or "(lisp" "lisp()"))`,
+			Input:      "repo:foo (lisp or lisp()",
+			Want:       `(and "repo:foo" (or "(lisp" "lisp()"))`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted",
 		},
 		{
 			Input: "(y or bar())",
 			Want:  `(or "y" "bar()")`,
 		},
 		{
-			Input: "((x or bar(",
-			Want:  `(or "((x" "bar(")`,
+			Input:      "((x or bar(",
+			Want:       `(or "((x" "bar(")`,
+			WantLabels: "HeuristicDanglingParens,HeuristicHoisted",
 		},
 		{
 			Input: "",
@@ -214,8 +250,31 @@ func TestParseAndOrLiteral(t *testing.T) {
 		},
 		// For better or worse, escaping parentheses is not supported until we decide to do so.
 		{
-			Input: `bar and (foo or x\) ()`,
-			Want:  `(and "bar" (concat (or "foo" "x\\") "()"))`,
+			Input:      `bar and (foo or x\) ()`,
+			Want:       `(and "bar" (concat (or "foo" "x\\") "()"))`,
+			WantLabels: "HeuristicParensAsPatterns",
+		},
+		// For implementation simplicity, behavior preserves whitespace
+		// inside parentheses.
+		{
+			Input:      "repo:foo (lisp    lisp)",
+			Want:       `(and "repo:foo" "(lisp    lisp)")`,
+			WantLabels: "HeuristicParensAsPatterns",
+		},
+		{
+			Input:      "repo:foo main( or (lisp    lisp)",
+			Want:       `(and "repo:foo" (or "main(" "(lisp    lisp)"))`,
+			WantLabels: "HeuristicHoisted,HeuristicParensAsPatterns",
+		},
+		{
+			Input:      "repo:foo )main( or (lisp    lisp)",
+			Want:       `(and "repo:foo" (or "main(" "(lisp    lisp)"))`,
+			WantLabels: "HeuristicHoisted,HeuristicParensAsPatterns",
+		},
+		{
+			Input:      "repo:foo ) main( or (lisp    lisp)",
+			Want:       `(and "repo:foo" (or "main(" "(lisp    lisp)"))`,
+			WantLabels: "HeuristicHoisted,HeuristicParensAsPatterns",
 		},
 		// This test input should error because the single quote in 'after' is unclosed.
 		/*
@@ -228,18 +287,12 @@ func TestParseAndOrLiteral(t *testing.T) {
 			Input: `"quoted"`,
 			Want:  `"\"quoted\""`,
 		},
-		// For implementation simplicity, behavior preserves whitespace
-		// inside parentheses.
-		{
-			Input: "repo:foo (lisp    lisp)",
-			Want:  `(and "repo:foo" "(lisp    lisp)")`,
-		},
 	}
 	for _, tt := range cases {
 		t.Run("literal search parse", func(t *testing.T) {
 			result, err := ParseAndOrLiteral(tt.Input)
 			if err != nil {
-				panic("bad " + err.Error())
+				t.Fatal("Did not expect error " + err.Error())
 			}
 			var resultStr []string
 			for _, node := range result {
@@ -247,6 +300,10 @@ func TestParseAndOrLiteral(t *testing.T) {
 			}
 			got := strings.Join(resultStr, " ")
 			if diff := cmp.Diff(tt.Want, got); diff != "" {
+				t.Error(diff)
+			}
+			gotLabels := heuristicLabels(result)
+			if diff := cmp.Diff(tt.WantLabels, gotLabels); diff != "" {
 				t.Error(diff)
 			}
 		})

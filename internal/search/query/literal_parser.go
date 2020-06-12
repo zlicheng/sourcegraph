@@ -6,8 +6,6 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/inconshreveable/log15"
 )
 
 // ScanAnyPatternLiteral consumes all characters up to a whitespace character
@@ -117,7 +115,13 @@ loop:
 		case p.match(LPAREN):
 			if value, advance, ok := ScanBalancedPatternLiteral(p.buf[p.pos:]); ok {
 				p.pos += advance
-				pattern := Pattern{Value: value, Negated: false, Annotation: Annotation{Labels: Literal}}
+				pattern := Pattern{
+					Value:   value,
+					Negated: false,
+					Annotation: Annotation{
+						Labels: Literal | HeuristicParensAsPatterns,
+					},
+				}
 				nodes = append(nodes, pattern)
 				continue
 			}
@@ -125,32 +129,46 @@ loop:
 				// Consume strings containing unbalanced
 				// parentheses up to whitespace.
 				pattern := p.ParsePatternLiteral()
+				pattern.Annotation.Labels |= HeuristicDanglingParens
 				nodes = append(nodes, pattern)
 				continue
 			}
-			log15.Info("2.")
 			_ = p.expect(LPAREN) // Guaranteed to succeed.
 			p.balanced++
-			log15.Info("scanned", "v", "(")
 			p.heuristics |= disambiguated
 			result, err := p.parseOrLiteral()
 			if err != nil {
 				return nil, err
 			}
 			nodes = append(nodes, result...)
-		case p.expect(RPAREN):
+		case p.match(RPAREN):
+			if isSet(p.heuristics, allowDanglingParens) {
+				// Consume strings containing unbalanced
+				// parentheses up to whitespace.
+				pattern := p.ParsePatternLiteral()
+				pattern.Annotation.Labels |= HeuristicDanglingParens
+				nodes = append(nodes, pattern)
+				continue
+			}
+			_ = p.expect(RPAREN) // Guaranteed to succeed.
 			p.balanced--
 			p.heuristics |= disambiguated
 			if len(nodes) == 0 {
 				// We parsed "()", interpret it literally.
-				nodes = []Node{Pattern{Value: "()", Annotation: Annotation{Labels: Literal | HeuristicParensAsPatterns}}}
+				nodes = []Node{
+					Pattern{
+						Value: "()",
+						Annotation: Annotation{
+							Labels: Literal | HeuristicParensAsPatterns,
+						},
+					},
+				}
 			}
 			break loop
 		case p.matchKeyword(AND), p.matchKeyword(OR):
 			// Caller advances.
 			break loop
 		default:
-			log15.Info("3.")
 			parameter, ok, err := p.ParseParameter()
 			if err != nil {
 				return nil, err
@@ -158,21 +176,17 @@ loop:
 			if ok {
 				nodes = append(nodes, parameter)
 			} else {
-				log15.Info("ParsePatternLiteral", "", "")
 				pattern := p.ParsePatternLiteral()
-				log15.Info("pattern", "", prettyPrint([]Node{pattern}))
 				nodes = append(nodes, pattern)
 			}
 		}
 	}
-	log15.Info("result", "", prettyPrint(nodes))
 	return partitionParameters(nodes), nil
 }
 
 // parseAnd parses and-expressions.
 func (p *parser) parseAndLiteral() ([]Node, error) {
 	left, err := p.parseParameterListLiteral()
-	log15.Info("balanced", "", fmt.Sprintf("%d", p.balanced))
 	if err != nil {
 		return nil, err
 	}

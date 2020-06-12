@@ -1,7 +1,5 @@
 package query
 
-import "strings"
-
 // Labels are general-purpose annotations that store information about a node.
 type labels uint8
 
@@ -23,9 +21,9 @@ var allLabels = map[labels]string{
 	HeuristicHoisted:          "HeuristicHoisted",
 }
 
-func String(labels labels) string {
+func Strings(labels labels) []string {
 	if labels == 0 {
-		return "None"
+		return []string{"None"}
 	}
 	var s []string
 	for k, v := range allLabels {
@@ -33,5 +31,5 @@ func String(labels labels) string {
 			s = append(s, v)
 		}
 	}
-	return "{" + strings.Join(s, ", ") + "}"
+	return s
 }
