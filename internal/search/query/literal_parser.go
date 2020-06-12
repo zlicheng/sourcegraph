@@ -36,6 +36,42 @@ func ScanAnyPatternLiteral(buf []byte) (scanned string, count int) {
 	return scanned, count
 }
 
+// Do I scan up to whitespace, or whitespace and balanced? I think whitespace and balanced.
+
+// ScanBalancedPatternLiteral is like ScanAnyPatternLiteral, except that it is
+// more strict about scanning on two points. It will:
+// (1) it will stop scanning the moment it detects an unbalanced parenthesis.
+// (2) reject strings that contain potential 'and' or 'or' keywords, and
+//
+// I.e., not (<contains keyword> and <is balanced>) holds.
+
+// consumes all characters up to a whitespace character and returns
+// the string and how much it consumed.
+func ScanBalancedPatternLiteral(buf []byte) (scanned string, count int) {
+	var advance int
+	var r rune
+	var result []rune
+
+	next := func() rune {
+		r, advance = utf8.DecodeRune(buf)
+		count += advance
+		buf = buf[advance:]
+		return r
+	}
+	for len(buf) > 0 {
+		start := count
+		r = next()
+		if unicode.IsSpace(r) {
+			count = start // Backtrack.
+			break
+		}
+		result = append(result, r)
+	}
+	scanned = string(result)
+	log15.Info("scanned", "v", scanned)
+	return scanned, count
+}
+
 func (p *parser) ParsePatternLiteral() Pattern {
 	// Accept unconditionally as pattern, even if the pattern
 	// contains dangling quotes like " or ', and do not interpret
