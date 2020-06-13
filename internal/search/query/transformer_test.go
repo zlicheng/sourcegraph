@@ -1,19 +1,10 @@
 package query
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
-
-func prettyPrint(nodes []Node) string {
-	var resultStr []string
-	for _, node := range nodes {
-		resultStr = append(resultStr, node.String())
-	}
-	return strings.Join(resultStr, " ")
-}
 
 func TestSubstituteAliases(t *testing.T) {
 	input := "r:repo g:repogroup f:file"
