@@ -668,30 +668,38 @@ func union(left, right *SearchResultsResolver) *SearchResultsResolver {
 	if left == nil {
 		return right
 	}
+
 	if left.SearchResults != nil && right.SearchResults != nil {
-		rightFileMatches := make(map[string]*FileMatchResolver)
-		for _, r := range right.SearchResults {
-			if fileMatch, ok := r.ToFileMatch(); ok {
-				rightFileMatches[fileMatch.uri] = fileMatch
-			}
-		}
-
 		for _, leftMatch := range left.SearchResults {
-			leftFileMatch, ok := leftMatch.ToFileMatch()
-			if !ok {
-				continue
-			}
+			for _, rightMatch := range right.SearchResults {
+				//			if fileMatch, ok := r.ToFileMatch(); ok {
+				//				rightFileMatches[fileMatch.uri] = fileMatch
+				//			}
 
-			if rightFileMatch := rightFileMatches[leftFileMatch.uri]; rightFileMatch != nil {
-				// Merge line matches for the same file.
-				leftFileMatch.JLineMatches = append(leftFileMatch.JLineMatches, rightFileMatch.JLineMatches...)
+				rightFileMatch, ok := rightMatch.ToFileMatch()
+				if !ok {
+					left.SearchResults = append(left.SearchResults, rightMatch)
+					continue
+				}
+
+				leftFileMatch, ok := leftMatch.ToFileMatch()
+				if !ok {
+					left.SearchResults = append(left.SearchResults, rightMatch)
+				}
+
+				if leftFileMatch.uri == rightFileMatch.uri {
+					leftFileMatch.JLineMatches = append(leftFileMatch.JLineMatches, rightFileMatch.JLineMatches...)
+					leftFileMatch.MatchCount += rightFileMatch.MatchCount
+					leftFileMatch.JLimitHit = leftFileMatch.JLimitHit || rightFileMatch.JLimitHit
+				} else {
+					left.SearchResults = append(left.SearchResults, rightMatch)
+				}
+
 			}
+			// merge common search data.
+			left.searchResultsCommon.update(right.searchResultsCommon)
+			return left
 		}
-
-		left.SearchResults = append(left.SearchResults, right.SearchResults...)
-		// merge common search data.
-		left.searchResultsCommon.update(right.searchResultsCommon)
-		return left
 	} else if right.SearchResults != nil {
 		return right
 	}
@@ -727,12 +735,12 @@ func intersect(left, right *SearchResultsResolver) (*SearchResultsResolver, erro
 		}
 
 		ltmpFileMatch.JLineMatches = append(ltmpFileMatch.JLineMatches, rtmpFileMatch.JLineMatches...)
+		ltmpFileMatch.MatchCount += rtmpFileMatch.MatchCount
+		ltmpFileMatch.JLimitHit = ltmpFileMatch.JLimitHit || rtmpFileMatch.JLimitHit
 		merged = append(merged, ltmp)
 	}
 	left.SearchResults = merged
 	left.searchResultsCommon.update(right.searchResultsCommon)
-	// for intersect we want the newly computed intersection size.
-	left.searchResultsCommon.resultCount = int32(len(merged))
 	return left, nil
 }
 
