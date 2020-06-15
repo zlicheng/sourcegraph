@@ -1453,7 +1453,7 @@ func TestService_UpdateCampaignWithNewPatchSetID(t *testing.T) {
 			newPatches: []newPatchSpec{
 				{repo: "repo-0", modifiedDiff: true},
 			},
-			wantErr: ErrManualCampaignUpdatePatchIllegal.Error(),
+			wantErr: "",
 		},
 		{
 			name:             "update plan on closed campaign",
@@ -1787,7 +1787,10 @@ func TestService_UpdateCampaignWithNewPatchSetID(t *testing.T) {
 			for _, j := range append(wantUnmodifiedChangesetJobs, wantModifiedChangesetJobs...) {
 				wantAttachedChangesetIDs = append(wantAttachedChangesetIDs, j.ChangesetID)
 			}
-			changesets, _, err := store.ListChangesets(ctx, ListChangesetsOpts{IDs: wantAttachedChangesetIDs})
+			changesets, _, err := store.ListChangesets(ctx, ListChangesetsOpts{
+				CampaignID: campaign.ID,
+				IDs:        wantAttachedChangesetIDs,
+			})
 			if err != nil {
 				t.Fatal(err)
 			}

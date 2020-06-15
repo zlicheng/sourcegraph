@@ -400,16 +400,12 @@ func (s *Service) AddChangesetsToCampaign(ctx context.Context, campaignID int64,
 		return nil, err
 	}
 
-	if campaign.PatchSetID != 0 {
-		return nil, errors.New("Changesets can only be added to campaigns that don't create their own changesets")
-	}
-
 	set := map[int64]struct{}{}
 	for _, id := range changesetIDs {
 		set[id] = struct{}{}
 	}
 
-	changesets, _, err := tx.ListChangesets(ctx, ListChangesetsOpts{IDs: changesetIDs})
+	changesets, _, err := tx.ListChangesets(ctx, ListChangesetsOpts{IDs: changesetIDs, Limit: -1})
 	if err != nil {
 		return nil, err
 	}
@@ -857,9 +853,6 @@ func (s *Service) UpdateCampaign(ctx context.Context, args UpdateCampaignArgs) (
 	}
 
 	oldPatchSetID := campaign.PatchSetID
-	if oldPatchSetID == 0 && args.PatchSet != nil {
-		return nil, nil, ErrManualCampaignUpdatePatchIllegal
-	}
 	if args.PatchSet != nil && oldPatchSetID != *args.PatchSet {
 		// Check there is no other campaign attached to the args.PatchSet.
 		_, err = tx.GetCampaign(ctx, GetCampaignOpts{PatchSetID: *args.PatchSet})
@@ -887,6 +880,12 @@ func (s *Service) UpdateCampaign(ctx context.Context, args UpdateCampaignArgs) (
 		return campaign, nil, nil
 	}
 
+	// If we're adding a patchset, we're done, since we don't have to compute a
+	// diff and don't have to update changesets.
+	if oldPatchSetID == 0 {
+		return campaign, nil, tx.UpdateCampaign(ctx, campaign)
+	}
+
 	status, err := tx.GetCampaignStatus(ctx, GetCampaignStatusOpts{ID: campaign.ID})
 	if err != nil {
 		return nil, nil, err
@@ -911,7 +910,7 @@ func (s *Service) UpdateCampaign(ctx context.Context, args UpdateCampaignArgs) (
 	allPublished := unpublished == 0
 	partiallyPublished := !allPublished && status.Total != 0
 
-	if campaign.PatchSetID != 0 && updateBranch {
+	if oldPatchSetID != 0 && updateBranch {
 		if allPublished || partiallyPublished {
 			return nil, nil, ErrPublishedCampaignBranchChange
 		}
@@ -927,7 +926,7 @@ func (s *Service) UpdateCampaign(ctx context.Context, args UpdateCampaignArgs) (
 	// If we do have to update ChangesetJobs/Changesets, here's a fast path: if
 	// we don't update the PatchSet, we don't need to rewire ChangesetJobs,
 	// but only update name/description if they changed.
-	if !updatePatchSetID && updateAttributes {
+	if (!updatePatchSetID || oldPatchSetID == 0) && updateAttributes {
 		err := tx.UpdateCampaign(ctx, campaign)
 		if err != nil {
 			return campaign, nil, err
