@@ -378,7 +378,7 @@ type Mutation {
     createCampaign(
         # The campaign's namespace (either a user or organization).
         namespace: ID!
-        spec: CampaignSpecInput!
+        campaignSpec: ID! # CampaignSpec.id
     ): Campaign!
 
     # Create or update a campaign from a campaign spec and locally computed changeset specs. If no
@@ -387,37 +387,21 @@ type Mutation {
     applyCampaign(
         # The campaign's namespace (either a user or organization).
         namespace: ID!
-        spec: CampaignSpecInput!
+
+        campaignSpec: ID! # CampaignSpec.id
+        # If set, return an error if the campaign identified using the namespace and spec parameters
+        # does not match the campaign with this ID. This lets callers use a stable ID that refers to
+        # a specific campaign during an edit session (and is not susceptible to conflicts if the
+        # underlying campaign is moved to a different namespace or renamed).
+        #
+        # TODO - this is kinda weird but seems useful to avoid someone accidentally clobbering
+        # changes on a campaign when someone else renamed/moved it without their knowledge (eg if
+        # they kept a browser tab open or reused a CLI history entry).
+        campaign: ID
     ): Campaign!
 
-    # Update a campaign identified by ID (not name) from a campaign spec and locally computed
-    # changeset specs. The campaign is returned.
-    #
-    # This mutation is for callers that intend to rename the campaign or otherwise need/want to use
-    # a stable, immutable ID to identify the campaign to update. Otherwise, callers can use the
-    # applyCampaign mutation.
-    updateCampaign(campaign: ID!, spec: CampaignSpecInput!): Campaign!
-
-    # TODO(sqs): do we really need create/apply/update? or can we combine them? I think we do, but we might be able to make them a single mutation with multiple params (although that might be more complex).
-    #
-    # Why is createCampaign needed? It would be weird if in the UI when you create a new empty campaign, if your campaign name is the same as one that exists, if it just took you to the existing one. In that case (given that the button is 'Create campaign'), it should show an error.
-    #
-    # Why is applyCampaign needed? This is the most obvious/general one. We could make the CLI decide whether to use createCampaign or updateCampaign by first seeing if the campaign existed, but that seems like logic that should not need to be implemented by each API consumer.
-    #
-    # Why is updateCampaign needed? Renaming campaigns requires it. Also, it is good practice for most API consumers to use a stable/immutable ID for a campaign (kind of like how we use the github numeric repo ID in our own DB to refer to GitHub repos).
-
-    # TODO(sqs): Need to factor out input types more; there's a lot of duplication in these
-    # mutations' params.
-
-    # TODO(sqs): what is the lifecycle/lifetime of a CampaignUpdatePreview? It is what bundles together
-    # multiple ChangesetSpecs so that you can have a short URL that shows the preview (otherwise the URL
-    # would need to encode at least each ChangesetSpec ID). Or do we have a new type, such as a
-    # ChangesetSpecList, that bundles these?
-
-    # TODO(sqs): do we need 1 previewXyzCampaign mutation for each? or can we combine these into 1?
-    previewCreateCampaign(namespace: ID!, spec: CampaignSpecInput!): CampaignUpdatePreview!
-    previewApplyCampaign(namespace: ID!, spec: CampaignSpecInput!, lastSeq: Int): CampaignUpdatePreview!
-    previewUpdateCampaign(campaign: ID!, spec: CampaignSpecInput!, lastSeq: Int): CampaignUpdatePreview!
+    # Move a campaign to a different namespace, or rename it in the current namespace.
+    moveCampaign(campaign: ID!, newName: String, newNamespace: ID): Campaign!
 
     # Close a campaign.
     closeCampaign(
@@ -432,35 +416,75 @@ type Mutation {
     # campaign's changesets are kept as-is; to close them, use the closeCampaign mutation first.
     deleteCampaign(campaign: ID!): EmptyResponse
 
-    # Upload a changeset spec. In the createCampaign, applyCampaign, and updateCampaign mutations,
-    # you can refer to changeset specs that were previously uploaded using this uploadChangesetSpec
-    # mutation. That lets you avoid a very large request payload; instead, you can upload the
-    # (possibly large) changeset specs individually.
+    # Upload a changeset spec that will be used in a future update to a campaign. The changeset spec
+    # is stored and can be referenced by its ID in the applyCampaign mutation. Just uploading the
+    # changeset spec does not result in changes to the campaign or any of its changesets; you need
+    # to call applyCampaign to use it.
     #
-    # TODO(sqs): should we allow uploading changesetspecs that are not attached to a campaign? The
-    # benefit is that we could get a truly atomic `src campaign apply` where it would not create a
-    # campaign if uploading any of the changesetspecs failed beforehand. But it seems nice and
-    # simple to always associate changesetspecs with a campaign, even if that means that the
-    # campaign would sit around empty. That might even be the desired behavior, esp. since you
-    # wouldn't create a bunch of duplicates if you retried because the name would be the same each
-    # time.
-    uploadChangesetSpec(campaign: ID!, changesetSpec: String!): ID!
+    # You can use this mutation to upload large changeset specs (e.g., containing large diffs) in
+    # individual HTTP requests. Then, in the eventual applyCampaign call, you just refer to the
+    # changeset specs by their IDs. This lets you avoid problems when updating large campaigns where
+    # a large HTTP request body (e.g., with many large diffs in the changeset specs) would be
+    # rejected by the web server/proxy or would be very slow.
+    #
+    # The returned ChangesetSpec is immutable and expires after a certain period of time (if not
+    # used in a call to applyCampaign), which can be queried on ChangesetSpec.expiresAt.
+    uploadChangesetSpec(
+        # TODO(sqs): the raw changeset spec, as JSON or something?
+        changesetSpec: String!
+    ): ChangesetSpec!
+
+    # Create a campaign spec.
+    #
+    # The returned CampaignSpec is immutable and expires after a certain period of time (if not
+    # used in a call to applyCampaign), which can be queried on CampaignSpec.expiresAt.
+    createCampaignSpec(
+        # The campaign spec as YAML (TODO also allow JSON for easier machine-creation or creation from JS web clients?).
+        campaignSpec: String!
+        # Changeset specs that were locally computed and then uploaded using uploadChangesetSpec.
+        changesetSpecs: [ID!]!
+    ): CampaignSpec!
+
+    # Compute the delta (difference) between a campaign's desired state (spec) and its actual state
+    # (status).
+    #
+    # NOTE: This actually belongs in Query (not Mutation), but I put it here for ease of review in
+    # this PR draft just because the other proposed APIs are here.
+    computeCampaignDelta(
+        campaign: ID!
+
+        campaignSpec: CampaignSpecInput!
+        campaignSpecID: ID!
+    ): CampaignDelta!
 
     # Enqueue the given changeset for high-priority syncing.
     syncChangeset(changeset: ID!): EmptyResponse!
 }
 
-input CampaignSpecInput {
-    # The camaign spec YAML.
-    campaignSpec: String!
+# An immutable description of the desired state of a changeset in a campaign.
+type ChangesetSpec implements Node {
+    id: ID! # unguessable ID
+    expiresAt: DateTime
+}
 
-    # Changeset specs that were computed locally. (TODO(sqs): what format? Richly-typed GraphQL, or
-    # just raw JSON/YAML?) This field's items are merged with those from the changesetSpecIDs field.
-    changesetSpecs: [String!]
+# An immutable description of the desired state of a campaign.
+type CampaignSpec implements Node {
+    changesetSpecs: [ChangesetSpec!]!
+    expiresAt: DateTime
+}
 
-    # Changeset specs that were previously uploaded using the uploadChangesetSpec mutation. This
-    # field's items are merged with those from the changesetSpecs field.
-    changesetSpecIDs: [ID!]
+# The delta (difference) between a campaign's desired state (spec) and its actual state (status) at
+# a given point in time.
+#
+# NOTE: This would be used for BOTH (1) showing applyCampaign previews AND (2) after you
+# applyCampaign, showing you 'what still needs to be done to reconcile the actual state with the
+# desired state' (ie the 'status indicator').
+type CampaignDelta implements Node {
+    # TODO(sqs): add more fields here
+
+    # The point in time when the delta was created and the actual state was captured. Since this
+    # time, the actual state may have changed; those changes are not captured in this delta.
+    createdAt: DateTime!
 }
 
 # A user (identified either by username or email address) with its repository permission.
