@@ -32,66 +32,6 @@ scalar JSONCString
 
 # A mutation.
 type Mutation {
-    # Create a list of changesets in a specific repository on a code host (e.g.,
-    # pull requests on GitHub). If a changeset with the given input already
-    # exists, it is returned instead of a new entry being added to the database.
-    createChangesets(input: [CreateChangesetInput!]!): [ExternalChangeset!]!
-    # Add a list of changesets to a campaign. The campaign must not have a patchset.
-    addChangesetsToCampaign(campaign: ID!, changesets: [ID!]!): Campaign!
-    # Create a campaign in a namespace. The newly created campaign is returned.
-    createCampaign(input: CreateCampaignInput!): Campaign!
-    # Create a patchset from patches (in unified diff format) that are computed by the caller.
-    #
-    # To create the campaign, call createCampaign with the returned PatchSet.id in the
-    # CreateCampaignInput.patchSet field.
-    createPatchSetFromPatches(
-        # A list of patches (diffs) to apply to repositories (in new branches) when a campaign is
-        # created from this PatchSet.
-        patches: [PatchInput!]!
-    ): PatchSet!
-    # Updates a campaign. Updating is not allowed when any of the following are true:
-    #
-    # - The campaign has already been closed.
-    # - A plan is added to a manual campaign.
-    # - A non-manual campaign has a changeset that is not published (or is being published).
-    updateCampaign(input: UpdateCampaignInput!): Campaign!
-    # Retry publishing all changesets in the campaign that could not be
-    # successfully created on the code host. Retrying will clear the errors
-    # list of a campaign.
-    retryCampaignChangesets(campaign: ID!): Campaign!
-    # Delete a campaign.
-    deleteCampaign(
-        campaign: ID!
-        # Whether to close the changesets associated with this campaign on their respective code
-        # hosts. "Close" means the appropriate final state on the code host (e.g., "closed" on
-        # GitHub and "declined" on Bitbucket Server).
-        closeChangesets: Boolean = false
-    ): EmptyResponse
-    # Close a campaign.
-    closeCampaign(
-        campaign: ID!
-        # Whether to close the changesets associated with this campaign on their respective code
-        # hosts. "Close" means the appropriate final state on the code host (e.g., "closed" on
-        # GitHub and "declined" on Bitbucket Server).
-        closeChangesets: Boolean = false
-    ): Campaign!
-    # Create an ExternalChangeset on the code host asynchronously for each
-    # patch belonging to the patchset that has been attached to a campaign;
-    # otherwise, an error is returned and no ExternalChangesets are created.
-    # Callers can query the campaign's status to track the progress of this async operation.
-    # If one of the patches has previously been published but the publication failed,
-    # publication is NOT retried.
-    publishCampaignChangesets(campaign: ID!): Campaign!
-    # Create an ExternalChangeset on the code host asynchronously. The patch
-    # must belong to a patchset that has been attached to a campaign;
-    # otherwise, an error is returned and no ExternalChangeset is created.
-    # Callers can query the campaign's status to track the progress of this async operation.
-    # If the patch has previously been published but the publication failed,
-    # the patch is reset and publication will be retried.
-    publishChangeset(patch: ID!): EmptyResponse!
-    # Enqueue the given changeset for high-priority syncing.
-    syncChangeset(changeset: ID!): EmptyResponse!
-
     # Updates the user profile information for the user with the given ID.
     #
     # Only the user and site admins may perform this mutation.
@@ -427,6 +367,109 @@ type Mutation {
     # repository permissions and syncs them to Sourcegraph, so that the current permissions apply to
     # the user's operations on Sourcegraph.
     scheduleUserPermissionsSync(user: ID!): EmptyResponse!
+
+    #
+    # CAMPAIGNS
+    #
+
+    # Create a campaign from a campaign spec and locally computed changeset specs. If a campaign in
+    # the same namespace with the same name already exists, an error is returned. The newly created
+    # campaign is returned.
+    createCampaign(
+        # The campaign's namespace (either a user or organization).
+        namespace: ID!
+        spec: CampaignSpecInput!
+    ): Campaign!
+
+    # Create or update a campaign from a campaign spec and locally computed changeset specs. If no
+    # campaign exists in the namespace with the name given in the campaign spec, a campaign will be
+    # created. Otherwise, the existing campaign will be updated. The campaign is returned.
+    applyCampaign(
+        # The campaign's namespace (either a user or organization).
+        namespace: ID!
+        spec: CampaignSpecInput!
+
+        # TODO(sqs): This is a way you can avoid race conditions when you update a campaign that had
+        # a newer state from what you expected, like lastID in our settings API. Need to add details
+        # here.
+        lastSeq: Int
+    ): Campaign!
+
+    # Update a campaign identified by ID (not name) from a campaign spec and locally computed
+    # changeset specs. The campaign is returned.
+    #
+    # This mutation is for callers that intend to rename the campaign or otherwise need/want to use
+    # a stable, immutable ID to identify the campaign to update. Otherwise, callers can use the
+    # applyCampaign mutation.
+    updateCampaign(
+        campaign: ID!
+        spec: CampaignSpecInput!
+        lastSeq: Int # TODO(sqs): See lastSeq above.
+    ): Campaign!
+
+    # TODO(sqs): do we really need create/apply/update? or can we combine them? I think we do, but we might be able to make them a single mutation with multiple params (although that might be more complex).
+    #
+    # Why is createCampaign needed? It would be weird if in the UI when you create a new empty campaign, if your campaign name is the same as one that exists, if it just took you to the existing one. In that case (given that the button is 'Create campaign'), it should show an error.
+    #
+    # Why is applyCampaign needed? This is the most obvious/general one. We could make the CLI decide whether to use createCampaign or updateCampaign by first seeing if the campaign existed, but that seems like logic that should not need to be implemented by each API consumer.
+    #
+    # Why is updateCampaign needed? Renaming campaigns requires it. Also, it is good practice for most API consumers to use a stable/immutable ID for a campaign (kind of like how we use the github numeric repo ID in our own DB to refer to GitHub repos).
+
+    # TODO(sqs): Need to factor out input types more; there's a lot of duplication in these
+    # mutations' params.
+
+    # TODO(sqs): what is the lifecycle/lifetime of a CampaignUpdatePreview? It is what bundles together
+    # multiple ChangesetSpecs so that you can have a short URL that shows the preview (otherwise the URL
+    # would need to encode at least each ChangesetSpec ID). Or do we have a new type, such as a
+    # ChangesetSpecList, that bundles these?
+
+    # TODO(sqs): do we need 1 previewXyzCampaign mutation for each? or can we combine these into 1?
+    previewCreateCampaign(namespace: ID!, spec: CampaignSpecInput!): CampaignUpdatePreview!
+    previewApplyCampaign(namespace: ID!, spec: CampaignSpecInput!, lastSeq: Int): CampaignUpdatePreview!
+    previewUpdateCampaign(campaign: ID!, spec: CampaignSpecInput!, lastSeq: Int): CampaignUpdatePreview!
+
+    # Close a campaign.
+    closeCampaign(
+        campaign: ID!
+        # Whether to close the changesets associated with this campaign on their respective code
+        # hosts. "Close" means the appropriate final state on the code host (e.g., "closed" on
+        # GitHub and "declined" on Bitbucket Server).
+        closeChangesets: Boolean = false
+    ): Campaign!
+
+    # Delete a campaign. A deleted campaign is completely removed and can't be un-deleted. The
+    # campaign's changesets are kept as-is; to close them, use the closeCampaign mutation first.
+    deleteCampaign(campaign: ID!): EmptyResponse
+
+    # Upload a changeset spec. In the createCampaign, applyCampaign, and updateCampaign mutations,
+    # you can refer to changeset specs that were previously uploaded using this uploadChangesetSpec
+    # mutation. That lets you avoid a very large request payload; instead, you can upload the
+    # (possibly large) changeset specs individually.
+    #
+    # TODO(sqs): should we allow uploading changesetspecs that are not attached to a campaign? The
+    # benefit is that we could get a truly atomic `src campaign apply` where it would not create a
+    # campaign if uploading any of the changesetspecs failed beforehand. But it seems nice and
+    # simple to always associate changesetspecs with a campaign, even if that means that the
+    # campaign would sit around empty. That might even be the desired behavior, esp. since you
+    # wouldn't create a bunch of duplicates if you retried because the name would be the same each
+    # time.
+    uploadChangesetSpec(campaign: ID!, changesetSpec: String!): ID!
+
+    # Enqueue the given changeset for high-priority syncing.
+    syncChangeset(changeset: ID!): EmptyResponse!
+}
+
+input CampaignSpecInput {
+    # The camaign spec YAML.
+    campaignSpec: String!
+
+    # Changeset specs that were computed locally. (TODO(sqs): what format? Richly-typed GraphQL, or
+    # just raw JSON/YAML?) This field's items are merged with those from the changesetSpecIDs field.
+    changesetSpecs: [String!]
+
+    # Changeset specs that were previously uploaded using the uploadChangesetSpec mutation. This
+    # field's items are merged with those from the changesetSpecs field.
+    changesetSpecIDs: [ID!]
 }
 
 # A user (identified either by username or email address) with its repository permission.

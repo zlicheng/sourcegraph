@@ -30,14 +30,8 @@ scalar JSONCString
 
 # A mutation.
 type Mutation {
-    # Create a list of changesets in a specific repository on a code host (e.g.,
-    # pull requests on GitHub). If a changeset with the given input already
-    # exists, it is returned instead of a new entry being added to the database.
-    createChangesets(input: [CreateChangesetInput!]!): [ExternalChangeset!]!
-    # Add a list of changesets to a campaign. The campaign must not have a patchset.
-    addChangesetsToCampaign(campaign: ID!, changesets: [ID!]!): Campaign!
     # Create a campaign in a namespace. The newly created campaign is returned.
-    createCampaign(input: CreateCampaignInput!): Campaign!
+    createCampaign(spec: CampaignSpecInput!): Campaign!
     # Create a patchset from patches (in unified diff format) that are computed by the caller.
     #
     # To create the campaign, call createCampaign with the returned PatchSet.id in the
@@ -53,18 +47,6 @@ type Mutation {
     # - A plan is added to a manual campaign.
     # - A non-manual campaign has a changeset that is not published (or is being published).
     updateCampaign(input: UpdateCampaignInput!): Campaign!
-    # Retry publishing all changesets in the campaign that could not be
-    # successfully created on the code host. Retrying will clear the errors
-    # list of a campaign.
-    retryCampaignChangesets(campaign: ID!): Campaign!
-    # Delete a campaign.
-    deleteCampaign(
-        campaign: ID!
-        # Whether to close the changesets associated with this campaign on their respective code
-        # hosts. "Close" means the appropriate final state on the code host (e.g., "closed" on
-        # GitHub and "declined" on Bitbucket Server).
-        closeChangesets: Boolean = false
-    ): EmptyResponse
     # Close a campaign.
     closeCampaign(
         campaign: ID!
@@ -73,6 +55,9 @@ type Mutation {
         # GitHub and "declined" on Bitbucket Server).
         closeChangesets: Boolean = false
     ): Campaign!
+    # Delete a campaign. A deleted campaign is completely removed and can't be un-deleted. The
+    # campaign's changesets are kept as-is; to close them, use the closeCampaign mutation first.
+    deleteCampaign(campaign: ID!): EmptyResponse
     # Create an ExternalChangeset on the code host asynchronously for each
     # patch belonging to the patchset that has been attached to a campaign;
     # otherwise, an error is returned and no ExternalChangesets are created.
