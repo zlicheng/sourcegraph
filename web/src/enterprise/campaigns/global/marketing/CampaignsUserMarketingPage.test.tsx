@@ -1,14 +1,25 @@
 import React from 'react'
 import renderer from 'react-test-renderer'
 import { CampaignsUserMarketingPage } from './CampaignsUserMarketingPage'
+import { IUser } from '../../../../../../shared/src/graphql/schema'
 
 describe('CampaignsUserMarketingPage', () => {
     test('renders for disabled', () => {
-        const result = renderer.create(<CampaignsUserMarketingPage enableReadAccess={false} />)
+        const result = renderer.create(
+            <CampaignsUserMarketingPage
+                authenticatedUser={{ id: 'a', username: 'alice', avatarURL: null } as IUser}
+                enableReadAccess={false}
+            />
+        )
         expect(result.toJSON()).toMatchSnapshot()
     })
     test('renders for enabled', () => {
-        const result = renderer.create(<CampaignsUserMarketingPage enableReadAccess={true} />)
+        const result = renderer.create(
+            <CampaignsUserMarketingPage
+                authenticatedUser={{ id: 'a', username: 'alice', avatarURL: null } as IUser}
+                enableReadAccess={true}
+            />
+        )
         expect(result.toJSON()).toMatchSnapshot()
     })
 })

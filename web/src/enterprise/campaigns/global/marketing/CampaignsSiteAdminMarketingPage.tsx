@@ -1,9 +1,13 @@
 import React from 'react'
 import { CampaignsMarketing } from './CampaignsMarketing'
+import { withAuthenticatedUser } from '../../../../auth/withAuthenticatedUser'
+import { IUser } from '../../../../../../shared/src/graphql/schema'
 
-export interface CampaignsSiteAdminMarketingPageProps {}
+export interface CampaignsSiteAdminMarketingPageProps {
+    authenticatedUser: IUser
+}
 
-export const CampaignsSiteAdminMarketingPage: React.FunctionComponent<CampaignsSiteAdminMarketingPageProps> = () => (
+export const CampaignsSiteAdminMarketingPage = withAuthenticatedUser<CampaignsSiteAdminMarketingPageProps>(() => (
     <CampaignsMarketing
         body={
             <section className="my-3">
@@ -42,4 +46,4 @@ export const CampaignsSiteAdminMarketingPage: React.FunctionComponent<CampaignsS
             </section>
         }
     />
-)
+))

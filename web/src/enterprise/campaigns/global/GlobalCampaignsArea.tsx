@@ -22,22 +22,30 @@ interface Props
         ExtensionsControllerProps,
         TelemetryProps,
         PlatformContextProps {
-    authenticatedUser: IUser
+    authenticatedUser: IUser | null
     isSourcegraphDotCom: boolean
 }
 
 /**
  * The global campaigns area.
  */
-export const GlobalCampaignsArea = withAuthenticatedUser<Props>(({ match, ...outerProps }) => {
-    let content: React.ReactFragment
-    if (outerProps.isSourcegraphDotCom) {
-        content = <CampaignsDotComPage {...outerProps} />
-    } else if (window.context.experimentalFeatures?.automation === 'enabled') {
-        if (!outerProps.authenticatedUser.siteAdmin && window.context.site['campaigns.readAccess.enabled'] !== true) {
-            content = <CampaignsUserMarketingPage {...outerProps} enableReadAccess={true} />
-        } else {
-            content = (
+export const GlobalCampaignsArea: React.FunctionComponent<Props> = props => {
+    if (props.isSourcegraphDotCom) {
+        return (
+            <div className="container mt-4">
+                <CampaignsDotComPage {...props} />
+            </div>
+        )
+    }
+    const ContentWithAuth = withAuthenticatedUser<Props & { authenticatedUser: IUser }>(({ match, ...outerProps }) => {
+        if (window.context.experimentalFeatures?.automation === 'enabled') {
+            if (
+                !outerProps.authenticatedUser.siteAdmin &&
+                window.context.site['campaigns.readAccess.enabled'] !== true
+            ) {
+                return <CampaignsUserMarketingPage {...props} enableReadAccess={true} />
+            }
+            return (
                 <>
                     <DismissibleAlert partialStorageKey="campaigns-beta" className="alert-info">
                         <p className="mb-0">
@@ -90,10 +98,14 @@ export const GlobalCampaignsArea = withAuthenticatedUser<Props>(({ match, ...out
                 </>
             )
         }
-    } else if (outerProps.authenticatedUser.siteAdmin) {
-        content = <CampaignsSiteAdminMarketingPage {...outerProps} />
-    } else {
-        content = <CampaignsUserMarketingPage {...outerProps} enableReadAccess={false} />
-    }
-    return <div className="container mt-4">{content}</div>
-})
+        if (outerProps.authenticatedUser.siteAdmin) {
+            return <CampaignsSiteAdminMarketingPage {...props} />
+        }
+        return <CampaignsUserMarketingPage {...props} enableReadAccess={false} />
+    })
+    return (
+        <div className="container mt-4">
+            <ContentWithAuth {...props} />
+        </div>
+    )
+}
