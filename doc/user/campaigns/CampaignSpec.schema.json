@@ -4,8 +4,12 @@
   "description": "CampaignSpec is a description of a campaign.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["changesets"],
+  "required": ["name", "changesets"],
   "properties": {
+    "name": {
+      "description": "The name of the campaign, which is unique among all campaigns in the namespace. A campaign's name is case-preserving.",
+      "pattern": "^[\\w.-]+$"
+    },
     "changesets": {
       "description": "A list of changesets that this campaign ensures the existence of.",
       "type": "array",

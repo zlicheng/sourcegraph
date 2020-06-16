@@ -388,11 +388,6 @@ type Mutation {
         # The campaign's namespace (either a user or organization).
         namespace: ID!
         spec: CampaignSpecInput!
-
-        # TODO(sqs): This is a way you can avoid race conditions when you update a campaign that had
-        # a newer state from what you expected, like lastID in our settings API. Need to add details
-        # here.
-        lastSeq: Int
     ): Campaign!
 
     # Update a campaign identified by ID (not name) from a campaign spec and locally computed
@@ -401,11 +396,7 @@ type Mutation {
     # This mutation is for callers that intend to rename the campaign or otherwise need/want to use
     # a stable, immutable ID to identify the campaign to update. Otherwise, callers can use the
     # applyCampaign mutation.
-    updateCampaign(
-        campaign: ID!
-        spec: CampaignSpecInput!
-        lastSeq: Int # TODO(sqs): See lastSeq above.
-    ): Campaign!
+    updateCampaign(campaign: ID!, spec: CampaignSpecInput!): Campaign!
 
     # TODO(sqs): do we really need create/apply/update? or can we combine them? I think we do, but we might be able to make them a single mutation with multiple params (although that might be more complex).
     #
